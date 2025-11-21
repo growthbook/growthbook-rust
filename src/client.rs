@@ -54,6 +54,7 @@ pub struct GrowthBookClientBuilder {
     on_feature_usage: Option<OnFeatureUsageCallback>,
     on_experiment_viewed: Option<OnExperimentViewedCallback>,
     on_refresh: Vec<OnRefreshCallback>,
+    features: Option<HashMap<String, crate::dto::GrowthBookFeature>>,
 }
 
 impl GrowthBookClientBuilder {
@@ -69,6 +70,7 @@ impl GrowthBookClientBuilder {
             on_feature_usage: None,
             on_experiment_viewed: None,
             on_refresh: Vec::new(),
+            features: None,
         }
     }
 
@@ -122,6 +124,17 @@ impl GrowthBookClientBuilder {
         self
     }
 
+    pub fn features(mut self, features: HashMap<String, crate::dto::GrowthBookFeature>) -> Self {
+        self.features = Some(features);
+        self
+    }
+
+    pub fn features_json(mut self, features_json: serde_json::Value) -> Result<Self, serde_json::Error> {
+        let features: HashMap<String, crate::dto::GrowthBookFeature> = serde_json::from_value(features_json)?;
+        self.features = Some(features);
+        Ok(self)
+    }
+
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
         let api_url = self.api_url.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "API URL is required"))?;
         let client_key = self.client_key.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "Client Key is required"))?;
@@ -142,7 +155,7 @@ impl GrowthBookClientBuilder {
         let client = GrowthBookClient {
             gb: Arc::new(RwLock::new(GrowthBook {
                 forced_variations: None,
-                features: HashMap::new(),
+                features: self.features.unwrap_or_default(),
                 attributes: self.attributes,
             })),
             cache: Some(cache),
