@@ -84,7 +84,7 @@ if client.is_on("my-feature", Some(user_attrs)) {
 }
 ```
 
-## Callbacks
+## Tracking Callbacks
 
 You can subscribe to events for tracking and analytics.
 
@@ -112,3 +112,36 @@ The SDK can also be configured via environment variables if not explicitly set i
 | GB_UPDATE_INTERVAL     | Interval for auto-refresh (if enabled). Default: 60s                           |
 | GB_URL                 | GrowthBook API URL                                                             |
 | GB_SDK_KEY             | GrowthBook SDK Key                                                             |
+
+## Refreshing features & Caching
+
+The SDK supports automated feature updates via a background task. This is enabled by default when using `auto_refresh(true)` in the builder.
+
+- **Caching**: Features are cached in memory by default. You can configure the TTL using `.ttl(Duration::from_secs(60))`.
+- **Background Sync**: When `auto_refresh` is enabled, a background task periodically fetches features from the API and updates the cache.
+- **On Refresh Callback**: You can listen for updates using `.add_on_refresh(...)`.
+
+## Manual Feature Management
+
+If you prefer to manage feature updates manually or want to start with a specific set of features (e.g., from a file or another source), you can disable auto-refresh and provide initial features.
+
+```rust
+use serde_json::json;
+
+let features_json = json!({
+    "my-feature": {
+        "defaultValue": true
+    }
+});
+
+let client = GrowthBookClientBuilder::new()
+    .api_url(api_url)
+    .client_key(sdk_key)
+    .auto_refresh(false) // Disable background sync
+    .features_json(features_json)? // Set initial features
+    .build()
+    .await?;
+
+// You can manually refresh features later
+client.refresh().await;
+```
