@@ -1,0 +1,51 @@
+[package]
+name = "growthbook-rust"
+version = "0.0.1"
+edition = "2021"
+authors = [
+    "Growthbook <hello@growthbook.io>",
+]
+license = "MIT"
+description = "unofficial growthbook rust sdk"
+readme = "README.md"
+homepage = "https://github.com/will-bank/growthbook-rust-sdk"
+repository = "https://github.com/will-bank/growthbook-rust-sdk"
+keywords = ["growthbook", "experiment", "feature", "flag"]
+categories = ["web-programming"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.38.0", features = ["full"] }
+hashers = { version = "1.0.1" }
+
+reqwest = { version = "0.12.4", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+reqwest-middleware = { version = "0.4.0" }
+
+strum = { version = "0.27.1" }
+strum_macros = { version = "0.27.1" }
+
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = { version = "1.0.113", features = ["preserve_order"] }
+
+reqwest-tracing = { version = "0.5.4", features = ["opentelemetry_0_21"] }
+tracing = { version = "0.1.40" }
+
+lazy_static = { version = "1.4.0" }
+chrono = { version = "0.4.38" }
+regex = { version = "1.10.4" }
+indexmap = { version = "2.2.6" }
+
+[dev-dependencies]
+tower = { version = "0.5.2", features = ["util"] }
+
+rstest = { version = "0.25.0" }
+test-context = { version = "0.4.1" }
+
+wiremock = { version = "0.6.0" }
+
+rand = { version = "0.9.1" }
+uuid = { version = "1.8.0", features = ["v7", "serde"] }
