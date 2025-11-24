@@ -8,8 +8,8 @@ authors = [
 license = "MIT"
 description = "Official Growthbook Rust SDK"
 readme = "README.md"
-homepage = "https://github.com/will-bank/growthbook-rust-sdk"
-repository = "https://github.com/will-bank/growthbook-rust-sdk"
+homepage = "https://github.com/growthbook/growthbook-rust"
+repository = "https://github.com/growthbook/growthbook-rust"
 keywords = ["growthbook", "experimentation", "feature-flags", "ab-testing"]
 categories = ["web-programming"]
 
