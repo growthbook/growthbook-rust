@@ -28,6 +28,7 @@ pub struct GrowthBookClient {
     pub on_feature_usage: Option<OnFeatureUsageCallback>,
     pub on_experiment_viewed: Option<OnExperimentViewedCallback>,
     pub on_refresh: Vec<OnRefreshCallback>,
+    pub decryption_key: Option<String>,
 }
 
 impl Debug for GrowthBookClient {
@@ -39,6 +40,7 @@ impl Debug for GrowthBookClient {
             .field("on_feature_usage", &self.on_feature_usage.is_some())
             .field("on_experiment_viewed", &self.on_experiment_viewed.is_some())
             .field("on_refresh", &self.on_refresh.len())
+            .field("decryption_key", &self.decryption_key.is_some())
             .finish()
     }
 }
@@ -55,6 +57,7 @@ pub struct GrowthBookClientBuilder {
     on_experiment_viewed: Option<OnExperimentViewedCallback>,
     on_refresh: Vec<OnRefreshCallback>,
     features: Option<HashMap<String, crate::dto::GrowthBookFeature>>,
+    decryption_key: Option<String>,
 }
 
 impl GrowthBookClientBuilder {
@@ -71,6 +74,7 @@ impl GrowthBookClientBuilder {
             on_experiment_viewed: None,
             on_refresh: Vec::new(),
             features: None,
+            decryption_key: None,
         }
     }
 
@@ -135,6 +139,11 @@ impl GrowthBookClientBuilder {
         Ok(self)
     }
 
+    pub fn decryption_key(mut self, decryption_key: String) -> Self {
+        self.decryption_key = Some(decryption_key);
+        self
+    }
+
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
         let api_url = self.api_url.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "API URL is required"))?;
         let client_key = self.client_key.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "Client Key is required"))?;
@@ -165,6 +174,7 @@ impl GrowthBookClientBuilder {
             on_feature_usage: self.on_feature_usage,
             on_experiment_viewed: self.on_experiment_viewed,
             on_refresh: self.on_refresh,
+            decryption_key: self.decryption_key,
         };
 
         // Initial load
@@ -208,11 +218,29 @@ impl GrowthBookClient {
     }
 
     fn update_gb(&self, response: GrowthBookResponse) {
+        let mut features = response.features;
+
+        if let Some(encrypted_features) = response.encrypted_features {
+            if let Some(key) = &self.decryption_key {
+                if let Ok(decrypted) = decrypt_features(&encrypted_features, key) {
+                    if let Ok(parsed_features) = serde_json::from_str(&decrypted) {
+                        features = Some(parsed_features);
+                    } else {
+                        error!("[growthbook-sdk] Failed to parse decrypted features");
+                    }
+                } else {
+                    error!("[growthbook-sdk] Failed to decrypt features");
+                }
+            } else {
+                error!("[growthbook-sdk] Encrypted features received but no decryption key provided");
+            }
+        }
+
         let mut writable_config = self.gb.write().expect("problem to create mutex for gb data");
         let attributes = writable_config.attributes.clone();
         *writable_config = GrowthBook {
             forced_variations: response.forced_variations,
-            features: response.features,
+            features: features.unwrap_or_default(),
             attributes,
         };
         
@@ -346,4 +374,38 @@ impl GrowthBookClientTrait for GrowthBookClient {
         let gb_data = self.read_gb();
         gb_data.features.len()
     }
+}
+
+use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
+use base64::{engine::general_purpose, Engine as _};
+
+type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
+
+fn decrypt_features(encrypted_features: &str, key: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let parts: Vec<&str> = encrypted_features.split('.').collect();
+    if parts.len() != 2 {
+        return Err("Invalid encrypted features format".into());
+    }
+
+    let iv = general_purpose::STANDARD.decode(parts[0])?;
+    let mut ciphertext = general_purpose::STANDARD.decode(parts[1])?; // Mutable for in-place decryption
+    let key_bytes = general_purpose::STANDARD.decode(key)?;
+
+    if key_bytes.len() != 16 {
+        return Err("Invalid key length".into());
+    }
+
+    let decryptor = Aes128CbcDec::new_from_slices(&key_bytes, &iv)
+        .map_err(|_| "Invalid key or IV length")?;
+    
+    // Decrypt in-place
+    let plaintext_len = decryptor
+        .decrypt_padded_mut::<Pkcs7>(&mut ciphertext)
+        .map_err(|_| "Decryption failed (padding error)")?
+        .len();
+    
+    // Truncate to actual plaintext length (though decrypt_padded_mut returns slice, we modified vec)
+    ciphertext.truncate(plaintext_len);
+
+    Ok(String::from_utf8(ciphertext)?)
 }
