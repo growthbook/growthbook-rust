@@ -4,7 +4,7 @@
 [![Docs](https://docs.rs/growthbook-rust/badge.svg)](https://docs.rs/growthbook-rust)
 
 > [!NOTE]
-> This repo was originally developed by the community and later adopted by GrowthBook.
+> This repo was originally developed by the [community](https://github.com/will-bank/growthbook-rust-sdk) and later adopted by GrowthBook.
 
 The official GrowthBook SDK for Rust. This crate provides an easy way to integrate feature flagging and experimentation into your Rust applications.
 
