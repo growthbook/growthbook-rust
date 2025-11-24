@@ -10,7 +10,7 @@ description = "Official Growthbook Rust SDK"
 readme = "README.md"
 homepage = "https://github.com/will-bank/growthbook-rust-sdk"
 repository = "https://github.com/will-bank/growthbook-rust-sdk"
-keywords = ["growthbook", "experimentation", "feature flags", "A/B testing"]
+keywords = ["growthbook", "experimentation", "feature-flags", "A/B testing"]
 categories = ["web-programming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
