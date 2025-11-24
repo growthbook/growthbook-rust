@@ -4,3 +4,4 @@
 .idea/
 *.iml
 .local.env
+.DS_Store
