@@ -222,14 +222,17 @@ impl GrowthBookClient {
 
         if let Some(encrypted_features) = response.encrypted_features {
             if let Some(key) = &self.decryption_key {
-                if let Ok(decrypted) = decrypt_features(&encrypted_features, key) {
-                    if let Ok(parsed_features) = serde_json::from_str(&decrypted) {
-                        features = Some(parsed_features);
-                    } else {
-                        error!("[growthbook-sdk] Failed to parse decrypted features");
+                match decrypt_features(&encrypted_features, key) {
+                    Ok(decrypted) => {
+                        if let Ok(parsed_features) = serde_json::from_str(&decrypted) {
+                            features = Some(parsed_features);
+                        } else {
+                            error!("[growthbook-sdk] Failed to parse decrypted features");
+                        }
+                    },
+                    Err(e) => {
+                        error!("[growthbook-sdk] Failed to decrypt features: {:?}", e);
                     }
-                } else {
-                    error!("[growthbook-sdk] Failed to decrypt features");
                 }
             } else {
                 error!("[growthbook-sdk] Encrypted features received but no decryption key provided");

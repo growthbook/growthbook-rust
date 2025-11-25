@@ -1,43 +1,22 @@
 use growthbook_rust::client::GrowthBookClientBuilder;
 use growthbook_rust::client::GrowthBookClientTrait;
+use growthbook_rust::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
-use aes::cipher::{block_padding::Pkcs7, BlockEncryptMut, KeyIvInit};
-use base64::{engine::general_purpose, Engine as _};
-
-type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
 
 #[tokio::test]
 async fn test_encrypted_features() {
+    let _ = tracing_subscriber::fmt::try_init();
     // 1. Setup Mock Server
     let mock_server = MockServer::start().await;
     let sdk_key = "test_key";
 
-    // 2. Prepare Payload
-    let features = json!({
-        "encrypted-feature": {
-            "defaultValue": true
-        }
-    });
-    let plaintext = features.to_string();
-    
-    // 3. Encrypt Payload
-    let key_bytes = [0u8; 16]; // All zeros key
-    let iv_bytes = [0u8; 16]; // All zeros IV
-    let key_str = general_purpose::STANDARD.encode(key_bytes);
-    let iv_str = general_purpose::STANDARD.encode(iv_bytes);
+    // 2. Sample Data
+    let key_str = "Ns04T5n9+59rl2x3SlNHtQ==";
+    let encrypted_string = "vMSg2Bj/IurObDsWVmvkUg==.L6qtQkIzKDoE2Dix6IAKDcVel8PHUnzJ7JjmLjFZFQDqidRIoCxKmvxvUj2kTuHFTQ3/NJ3D6XhxhXXv2+dsXpw5woQf0eAgqrcxHrbtFORs18tRXRZza7zqgzwvcznx";
 
-    let encryptor = Aes128CbcEnc::new(&key_bytes.into(), &iv_bytes.into());
-    let mut buffer = [0u8; 4096];
-    let pos = buffer.len();
-    let ciphertext_len = encryptor.encrypt_padded_b2b_mut::<Pkcs7>(plaintext.as_bytes(), &mut buffer).unwrap().len();
-    let ciphertext = &buffer[..ciphertext_len];
-    let ciphertext_str = general_purpose::STANDARD.encode(ciphertext);
-    
-    let encrypted_string = format!("{}.{}", iv_str, ciphertext_str);
-
-    // 4. Mock Response
+    // 3. Mock Response
     let response_body = json!({
         "status": 200,
         "encryptedFeatures": encrypted_string
@@ -49,15 +28,24 @@ async fn test_encrypted_features() {
         .mount(&mock_server)
         .await;
 
-    // 5. Initialize Client with Decryption Key
+    // 4. Initialize Client with Decryption Key
     let client = GrowthBookClientBuilder::new()
         .api_url(mock_server.uri())
         .client_key(sdk_key.to_string())
-        .decryption_key(key_str)
+        .decryption_key(key_str.to_string())
         .build()
         .await
         .expect("Failed to build client");
 
-    // 6. Verify Feature
-    assert!(client.is_on("encrypted-feature", None));
+    // 5. Verify Feature
+    // Expected JSON:
+    // {
+    //     "testfeature1": {
+    //         "defaultValue": true,
+    //         "rules": [{"condition": { "id": "1234" }, "force": false}]
+    //       }
+    // }
+    
+    assert!(client.is_on("testfeature1", None));
+    assert!(client.is_off("testfeature1", Some(vec![GrowthBookAttribute::new("id".to_string(), GrowthBookAttributeValue::String("1234".to_string()))])));
 }
