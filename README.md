@@ -145,3 +145,16 @@ let client = GrowthBookClientBuilder::new()
 // You can manually refresh features later
 client.refresh().await;
 ```
+
+## Encrypted Features
+
+If you are using encrypted features, you can provide the decryption key to the builder.
+
+```rust
+let client = GrowthBookClientBuilder::new()
+    .api_url(api_url)
+    .client_key(sdk_key)
+    .decryption_key("your-decryption-key".to_string())
+    .build()
+    .await?;
+```
