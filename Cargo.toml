@@ -55,3 +55,4 @@ wiremock = { version = "0.6.0" }
 
 rand = { version = "0.9.1" }
 uuid = { version = "1.8.0", features = ["v7", "serde"] }
+tracing-subscriber = "0.3"
