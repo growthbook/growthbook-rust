@@ -1,7 +1,6 @@
 use growthbook_rust::client::GrowthBookClientBuilder;
 use growthbook_rust::client::GrowthBookClientTrait;
 use serde_json::json;
-use std::time::Duration;
 
 #[tokio::test]
 async fn test_manual_features() {

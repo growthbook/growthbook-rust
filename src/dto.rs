@@ -11,7 +11,8 @@ use crate::range::model::Range;
 #[serde(rename_all = "camelCase")]
 pub struct GrowthBookResponse {
     pub forced_variations: Option<HashMap<String, i64>>,
-    pub features: HashMap<String, GrowthBookFeature>,
+    pub features: Option<HashMap<String, GrowthBookFeature>>,
+    pub encrypted_features: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
