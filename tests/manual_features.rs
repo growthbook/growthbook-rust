@@ -28,7 +28,55 @@ async fn test_manual_features() {
     // Check value feature
     let result = client.feature_result("manual-value-feature", None);
     assert_eq!(result.value, "foo");
-    
+
     // Check unknown feature
     assert!(!client.is_on("unknown-feature", None));
+}
+
+#[tokio::test]
+async fn test_offline_mode_no_api_url_required() {
+    // When features are provided directly, api_url and client_key are NOT required.
+    // This matches the Python SDK behavior where features can be set without network config.
+    let features_json = json!({
+        "offline-feature": {
+            "defaultValue": true
+        },
+        "offline-disabled": {
+            "defaultValue": false
+        }
+    });
+
+    let client = GrowthBookClientBuilder::new()
+        .features_json(features_json).unwrap()
+        .build()
+        .await
+        .expect("Failed to build client in offline mode");
+
+    assert!(client.is_on("offline-feature", None));
+    assert!(!client.is_on("offline-disabled", None));
+    assert!(!client.is_on("unknown-feature", None));
+}
+
+#[tokio::test]
+async fn test_offline_mode_with_rules() {
+    let features_json = json!({
+        "targeted-feature": {
+            "defaultValue": false,
+            "rules": [
+                {
+                    "condition": {"country": "US"},
+                    "force": true
+                }
+            ]
+        }
+    });
+
+    let client = GrowthBookClientBuilder::new()
+        .features_json(features_json).unwrap()
+        .build()
+        .await
+        .expect("Failed to build client");
+
+    // Without attributes, should get default value
+    assert!(!client.is_on("targeted-feature", None));
 }

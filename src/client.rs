@@ -145,21 +145,33 @@ impl GrowthBookClientBuilder {
     }
 
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
-        let api_url = self.api_url.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "API URL is required"))?;
-        let client_key = self.client_key.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "Client Key is required"))?;
-        
         let refresh_interval = self.refresh_interval.unwrap_or_else(|| {
             let seconds = Environment::u64_or_default("GB_UPDATE_INTERVAL", 60);
             Duration::from_secs(seconds)
         });
 
-        let gateway = GrowthbookGateway::new(&api_url, &client_key, Duration::from_secs(10))?;
-        let gateway_arc = Arc::new(gateway);
-
-        let cache = self.cache.unwrap_or_else(|| {
-            let ttl = self.ttl.unwrap_or(Duration::from_secs(60));
-            Arc::new(InMemoryCache::new(ttl))
-        });
+        // If features are provided directly, api_url and client_key are optional (offline mode)
+        let has_features = self.features.is_some();
+        let (gateway_arc, cache) = match (&self.api_url, &self.client_key) {
+            (Some(api_url), Some(client_key)) => {
+                let gateway = GrowthbookGateway::new(api_url, client_key, Duration::from_secs(10))?;
+                let cache = self.cache.unwrap_or_else(|| {
+                    let ttl = self.ttl.unwrap_or(Duration::from_secs(60));
+                    Arc::new(InMemoryCache::new(ttl))
+                });
+                (Some(Arc::new(gateway)), Some(cache))
+            }
+            _ if has_features => {
+                // Offline mode: features provided directly, no network required
+                (None, None)
+            }
+            _ => {
+                return Err(GrowthbookError::new(
+                    crate::error::GrowthbookErrorCode::ConfigError,
+                    "Either api_url and client_key must be provided, or features must be set directly",
+                ));
+            }
+        };
 
         let client = GrowthBookClient {
             gb: Arc::new(RwLock::new(GrowthBook {
@@ -167,8 +179,8 @@ impl GrowthBookClientBuilder {
                 features: self.features.unwrap_or_default(),
                 attributes: self.attributes,
             })),
-            cache: Some(cache),
-            gateway: Some(gateway_arc),
+            cache,
+            gateway: gateway_arc,
             auto_refresh: self.auto_refresh,
             refresh_interval,
             on_feature_usage: self.on_feature_usage,
@@ -177,10 +189,12 @@ impl GrowthBookClientBuilder {
             decryption_key: self.decryption_key,
         };
 
-        // Initial load
-        client.refresh().await;
+        // Initial load (only if gateway is configured)
+        if client.gateway.is_some() {
+            client.refresh().await;
+        }
 
-        if client.auto_refresh {
+        if client.auto_refresh && client.gateway.is_some() {
             client.start_auto_refresh();
         }
 
