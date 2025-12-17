@@ -195,14 +195,14 @@ impl GrowthBookClientBuilder {
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
         // Gateway is optional now (for offline mode)
         let gateway = if let (Some(api_url), Some(client_key)) = (&self.api_url, &self.client_key) {
-             Some(GrowthbookGateway::new(api_url, client_key, Duration::from_secs(10))?)
+            Some(GrowthbookGateway::new(api_url, client_key, Duration::from_secs(10))?)
         } else {
             None
         };
 
         // Validate: Must have either manual features OR valid network config
         if self.features.is_none() && gateway.is_none() {
-             return Err(GrowthbookError::new(
+            return Err(GrowthbookError::new(
                 crate::error::GrowthbookErrorCode::ConfigError,
                 "Must provide either 'features' (manual) or 'api_url' + 'client_key' (network)",
             ));
@@ -241,7 +241,6 @@ impl GrowthBookClientBuilder {
         if self.features.is_none() {
             client.refresh().await;
         }
-
 
         if client.auto_refresh && client.gateway.is_some() {
             client.start_auto_refresh();
