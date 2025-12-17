@@ -1,0 +1,39 @@
+name: Build, Format and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ["1.75.0", "stable"] # Test across specific Rust versions: MSRV, stable, and beta
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.toolchain }}
+        components: rustfmt, clippy
+        
+    - uses: swatinem/rust-cache@v2
+
+    - name: Cargo Build
+      run: cargo build --verbose
+
+    - name: Cargo Test
+      run: cargo test --verbose
+
+    - name: Cargo fmt
+      if: matrix.toolchain == 'stable' # Only run fmt on stable toolchain
+      run: cargo fmt --all -- --check
+
+    - name: Cargo Clippy
+      if: matrix.toolchain == 'stable' # Only run clippy on stable toolchain
+      run: cargo clippy -- -D warnings # Treat warnings as errors
