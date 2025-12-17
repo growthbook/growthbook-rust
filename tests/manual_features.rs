@@ -17,7 +17,8 @@ async fn test_manual_features() {
         .api_url("http://localhost:1234".to_string()) // Fake URL
         .client_key("fake-key".to_string())
         .auto_refresh(false) // Disable auto-refresh
-        .features_json(features_json).unwrap()
+        .features_json(features_json)
+        .unwrap()
         .build()
         .await
         .expect("Failed to build client");
@@ -28,7 +29,7 @@ async fn test_manual_features() {
     // Check value feature
     let result = client.feature_result("manual-value-feature", None);
     assert_eq!(result.value, "foo");
-    
+
     // Check unknown feature
     assert!(!client.is_on("unknown-feature", None));
 }

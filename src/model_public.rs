@@ -277,7 +277,7 @@ impl FeatureResult {
 fn is_on(value: &Value) -> bool {
     let is_on = if value.is_null() {
         false
-    } else if (value.is_number() && value.force_f64(-1.0) != 0.0) || (value.is_string() && value.force_string("any") != "") {
+    } else if (value.is_number() && value.force_f64(-1.0) != 0.0) || (value.is_string() && !value.force_string("any").is_empty()) {
         true
     } else if value.is_boolean() {
         value.as_bool().unwrap_or(false)

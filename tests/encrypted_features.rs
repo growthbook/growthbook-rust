@@ -45,7 +45,10 @@ async fn test_encrypted_features() {
     //         "rules": [{"condition": { "id": "1234" }, "force": false}]
     //       }
     // }
-    
+
     assert!(client.is_on("testfeature1", None));
-    assert!(client.is_off("testfeature1", Some(vec![GrowthBookAttribute::new("id".to_string(), GrowthBookAttributeValue::String("1234".to_string()))])));
+    assert!(client.is_off(
+        "testfeature1",
+        Some(vec![GrowthBookAttribute::new("id".to_string(), GrowthBookAttributeValue::String("1234".to_string()))])
+    ));
 }

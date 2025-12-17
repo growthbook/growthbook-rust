@@ -9,8 +9,15 @@ use crate::dto::GrowthBookResponse;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 pub trait FeatureCache: Send + Sync {
-    fn get(&self, key: &str) -> BoxFuture<'_, Option<GrowthBookResponse>>;
-    fn set(&self, key: &str, value: GrowthBookResponse) -> BoxFuture<'_, ()>;
+    fn get(
+        &self,
+        key: &str,
+    ) -> BoxFuture<'_, Option<GrowthBookResponse>>;
+    fn set(
+        &self,
+        key: &str,
+        value: GrowthBookResponse,
+    ) -> BoxFuture<'_, ()>;
 }
 
 #[derive(Clone)]
@@ -29,7 +36,10 @@ impl InMemoryCache {
 }
 
 impl FeatureCache for InMemoryCache {
-    fn get(&self, key: &str) -> BoxFuture<'_, Option<GrowthBookResponse>> {
+    fn get(
+        &self,
+        key: &str,
+    ) -> BoxFuture<'_, Option<GrowthBookResponse>> {
         let key = key.to_string();
         let cache = self.cache.clone();
         Box::pin(async move {
@@ -43,7 +53,11 @@ impl FeatureCache for InMemoryCache {
         })
     }
 
-    fn set(&self, key: &str, value: GrowthBookResponse) -> BoxFuture<'_, ()> {
+    fn set(
+        &self,
+        key: &str,
+        value: GrowthBookResponse,
+    ) -> BoxFuture<'_, ()> {
         let key = key.to_string();
         let cache = self.cache.clone();
         let ttl = self.ttl;

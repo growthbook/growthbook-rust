@@ -1,6 +1,6 @@
+pub mod cache;
 pub mod client;
 mod condition;
-pub mod cache;
 pub mod coverage;
 pub mod dto;
 mod env;

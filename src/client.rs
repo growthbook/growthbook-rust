@@ -32,7 +32,10 @@ pub struct GrowthBookClient {
 }
 
 impl Debug for GrowthBookClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         f.debug_struct("GrowthBookClient")
             .field("gb", &self.gb)
             .field("auto_refresh", &self.auto_refresh)
@@ -60,6 +63,12 @@ pub struct GrowthBookClientBuilder {
     decryption_key: Option<String>,
 }
 
+impl Default for GrowthBookClientBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GrowthBookClientBuilder {
     pub fn new() -> Self {
         Self {
@@ -78,68 +87,107 @@ impl GrowthBookClientBuilder {
         }
     }
 
-    pub fn api_url(mut self, api_url: String) -> Self {
+    pub fn api_url(
+        mut self,
+        api_url: String,
+    ) -> Self {
         self.api_url = Some(api_url);
         self
     }
 
-    pub fn client_key(mut self, client_key: String) -> Self {
+    pub fn client_key(
+        mut self,
+        client_key: String,
+    ) -> Self {
         self.client_key = Some(client_key);
         self
     }
 
-    pub fn cache(mut self, cache: Arc<dyn FeatureCache>) -> Self {
+    pub fn cache(
+        mut self,
+        cache: Arc<dyn FeatureCache>,
+    ) -> Self {
         self.cache = Some(cache);
         self
     }
 
-    pub fn ttl(mut self, ttl: Duration) -> Self {
+    pub fn ttl(
+        mut self,
+        ttl: Duration,
+    ) -> Self {
         self.ttl = Some(ttl);
         self
     }
 
-    pub fn auto_refresh(mut self, auto_refresh: bool) -> Self {
+    pub fn auto_refresh(
+        mut self,
+        auto_refresh: bool,
+    ) -> Self {
         self.auto_refresh = auto_refresh;
         self
     }
 
-    pub fn refresh_interval(mut self, interval: Duration) -> Self {
+    pub fn refresh_interval(
+        mut self,
+        interval: Duration,
+    ) -> Self {
         self.refresh_interval = Some(interval);
         self
     }
 
-    pub fn attributes(mut self, attributes: HashMap<String, GrowthBookAttribute>) -> Self {
+    pub fn attributes(
+        mut self,
+        attributes: HashMap<String, GrowthBookAttribute>,
+    ) -> Self {
         self.attributes = Some(attributes);
         self
     }
 
-    pub fn on_feature_usage(mut self, callback: Box<dyn Fn(String, FeatureResult) + Send + Sync>) -> Self {
+    pub fn on_feature_usage(
+        mut self,
+        callback: Box<dyn Fn(String, FeatureResult) + Send + Sync>,
+    ) -> Self {
         self.on_feature_usage = Some(Arc::from(callback));
         self
     }
 
-    pub fn on_experiment_viewed(mut self, callback: Box<dyn Fn(ExperimentResult) + Send + Sync>) -> Self {
+    pub fn on_experiment_viewed(
+        mut self,
+        callback: Box<dyn Fn(ExperimentResult) + Send + Sync>,
+    ) -> Self {
         self.on_experiment_viewed = Some(Arc::from(callback));
         self
     }
 
-    pub fn add_on_refresh(mut self, callback: Box<dyn Fn() + Send + Sync>) -> Self {
+    pub fn add_on_refresh(
+        mut self,
+        callback: Box<dyn Fn() + Send + Sync>,
+    ) -> Self {
         self.on_refresh.push(Arc::from(callback));
         self
     }
 
-    pub fn features(mut self, features: HashMap<String, crate::dto::GrowthBookFeature>) -> Self {
+    pub fn features(
+        mut self,
+        features: HashMap<String, crate::dto::GrowthBookFeature>,
+    ) -> Self {
         self.features = Some(features);
         self
     }
 
-    pub fn features_json(mut self, features_json: serde_json::Value) -> Result<Self, serde_json::Error> {
+    pub fn features_json(
+        mut self,
+        features_json: serde_json::Value,
+    ) -> Result<Self, serde_json::Error> {
         let features: HashMap<String, crate::dto::GrowthBookFeature> = serde_json::from_value(features_json)?;
         self.features = Some(features);
         Ok(self)
     }
 
-    pub fn decryption_key(mut self, decryption_key: String) -> Self {
+    pub fn decryption_key(
+        mut self,
+        decryption_key: String,
+    ) -> Self {
         self.decryption_key = Some(decryption_key);
         self
     }
@@ -147,7 +195,7 @@ impl GrowthBookClientBuilder {
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
         let api_url = self.api_url.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "API URL is required"))?;
         let client_key = self.client_key.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "Client Key is required"))?;
-        
+
         let refresh_interval = self.refresh_interval.unwrap_or_else(|| {
             let seconds = Environment::u64_or_default("GB_UPDATE_INTERVAL", 60);
             Duration::from_secs(seconds)
@@ -192,7 +240,7 @@ impl GrowthBookClient {
     pub async fn refresh(&self) {
         if let Some(gateway) = &self.gateway {
             let cache_key = "features";
-            
+
             // Try cache first
             if let Some(cache) = &self.cache {
                 if let Some(response) = cache.get(cache_key).await {
@@ -212,12 +260,15 @@ impl GrowthBookClient {
                 },
                 Err(e) => {
                     error!("[growthbook-sdk] Failed to fetch features: {:?}", e);
-                }
+                },
             }
         }
     }
 
-    fn update_gb(&self, response: GrowthBookResponse) {
+    fn update_gb(
+        &self,
+        response: GrowthBookResponse,
+    ) {
         let mut features = response.features;
 
         if let Some(encrypted_features) = response.encrypted_features {
@@ -232,7 +283,7 @@ impl GrowthBookClient {
                     },
                     Err(e) => {
                         error!("[growthbook-sdk] Failed to decrypt features: {:?}", e);
-                    }
+                    },
                 }
             } else {
                 error!("[growthbook-sdk] Encrypted features received but no decryption key provided");
@@ -246,7 +297,7 @@ impl GrowthBookClient {
             features: features.unwrap_or_default(),
             attributes,
         };
-        
+
         for callback in &self.on_refresh {
             callback();
         }
@@ -262,7 +313,7 @@ impl GrowthBookClient {
         });
     }
 
-    // Keep existing new method for backward compatibility, 
+    // Keep existing new method for backward compatibility,
     // Old new: spawned a task immediately.
     pub async fn new(
         api_url: &str,
@@ -275,12 +326,12 @@ impl GrowthBookClient {
             .client_key(sdk_key.to_string())
             .auto_refresh(true)
             .ttl(Duration::from_secs(0)); // Disable caching for legacy new() to match old behavior
-        
+
         // Legacy new doesn't support setting callbacks, so they default to None
         if let Some(interval) = update_interval {
             builder = builder.refresh_interval(interval);
         }
-        
+
         builder.build().await
     }
 
@@ -308,7 +359,7 @@ impl GrowthBookClient {
         // Exclude: unknownFeature, prerequisite, cyclicPrerequisite
         let invalid_sources = ["unknownFeature", "prerequisite", "cyclicPrerequisite"];
         if !invalid_sources.contains(&result.source.as_str()) {
-             if let Some(cb) = &self.on_feature_usage {
+            if let Some(cb) = &self.on_feature_usage {
                 cb(feature_name.to_string(), result.clone());
             }
         }
@@ -384,7 +435,10 @@ use base64::{engine::general_purpose, Engine as _};
 
 type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 
-fn decrypt_features(encrypted_features: &str, key: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn decrypt_features(
+    encrypted_features: &str,
+    key: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let parts: Vec<&str> = encrypted_features.split('.').collect();
     if parts.len() != 2 {
         return Err("Invalid encrypted features format".into());
@@ -398,15 +452,11 @@ fn decrypt_features(encrypted_features: &str, key: &str) -> Result<String, Box<d
         return Err("Invalid key length".into());
     }
 
-    let decryptor = Aes128CbcDec::new_from_slices(&key_bytes, &iv)
-        .map_err(|_| "Invalid key or IV length")?;
-    
+    let decryptor = Aes128CbcDec::new_from_slices(&key_bytes, &iv).map_err(|_| "Invalid key or IV length")?;
+
     // Decrypt in-place
-    let plaintext_len = decryptor
-        .decrypt_padded_mut::<Pkcs7>(&mut ciphertext)
-        .map_err(|_| "Decryption failed (padding error)")?
-        .len();
-    
+    let plaintext_len = decryptor.decrypt_padded_mut::<Pkcs7>(&mut ciphertext).map_err(|_| "Decryption failed (padding error)")?.len();
+
     // Truncate to actual plaintext length (though decrypt_padded_mut returns slice, we modified vec)
     ciphertext.truncate(plaintext_len);
 
