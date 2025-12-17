@@ -28,7 +28,7 @@ impl GrowthbookGateway {
                 Environment::string_or_default("CARGO_PKG_NAME", "growthbook-rust-sdk"),
                 Environment::string_or_default("CARGO_PKG_VERSION", "1.0.0")
             ),
-            client: HttpClient::create_http_client("growthbook", timeout).map_err(GrowthbookError::from)?,
+            client: HttpClient::create_http_client("growthbook", timeout)?,
             sdk_key: sdk_key.to_string(),
         })
     }
