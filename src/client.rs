@@ -193,16 +193,27 @@ impl GrowthBookClientBuilder {
     }
 
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
-        let api_url = self.api_url.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "API URL is required"))?;
-        let client_key = self.client_key.ok_or(GrowthbookError::new(crate::error::GrowthbookErrorCode::ConfigError, "Client Key is required"))?;
+        // Gateway is optional now (for offline mode)
+        let gateway = if let (Some(api_url), Some(client_key)) = (&self.api_url, &self.client_key) {
+             Some(GrowthbookGateway::new(api_url, client_key, Duration::from_secs(10))?)
+        } else {
+            None
+        };
+
+        // Validate: Must have either manual features OR valid network config
+        if self.features.is_none() && gateway.is_none() {
+             return Err(GrowthbookError::new(
+                crate::error::GrowthbookErrorCode::ConfigError,
+                "Must provide either 'features' (manual) or 'api_url' + 'client_key' (network)",
+            ));
+        }
 
         let refresh_interval = self.refresh_interval.unwrap_or_else(|| {
             let seconds = Environment::u64_or_default("GB_UPDATE_INTERVAL", 60);
             Duration::from_secs(seconds)
         });
 
-        let gateway = GrowthbookGateway::new(&api_url, &client_key, Duration::from_secs(10))?;
-        let gateway_arc = Arc::new(gateway);
+        let gateway_arc = gateway.map(Arc::new);
 
         let cache = self.cache.unwrap_or_else(|| {
             let ttl = self.ttl.unwrap_or(Duration::from_secs(60));
@@ -212,11 +223,11 @@ impl GrowthBookClientBuilder {
         let client = GrowthBookClient {
             gb: Arc::new(RwLock::new(GrowthBook {
                 forced_variations: None,
-                features: self.features.unwrap_or_default(),
+                features: self.features.clone().unwrap_or_default(), // Use cloned features if present
                 attributes: self.attributes,
             })),
             cache: Some(cache),
-            gateway: Some(gateway_arc),
+            gateway: gateway_arc,
             auto_refresh: self.auto_refresh,
             refresh_interval,
             on_feature_usage: self.on_feature_usage,
@@ -225,10 +236,14 @@ impl GrowthBookClientBuilder {
             decryption_key: self.decryption_key,
         };
 
-        // Initial load
-        client.refresh().await;
+        // Initial load: Only when there are no manual features
+        // If we have manual features, we assume they are the source of truth for start.
+        if self.features.is_none() {
+            client.refresh().await;
+        }
 
-        if client.auto_refresh {
+
+        if client.auto_refresh && client.gateway.is_some() {
             client.start_auto_refresh();
         }
 
