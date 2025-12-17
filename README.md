@@ -138,7 +138,7 @@ let client = GrowthBookClientBuilder::new()
     .api_url(api_url)
     .client_key(sdk_key)
     .auto_refresh(false) // Disable background sync
-    .features_json(features_json)? // Set initial features
+    .features_json(features_json)? // Set features manually
     .build()
     .await?;
 
