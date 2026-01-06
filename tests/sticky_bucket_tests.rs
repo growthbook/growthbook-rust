@@ -1,11 +1,11 @@
+use serde::Deserialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
-use serde::Deserialize;
-use serde_json::Value;
 
-use growthbook_rust::growthbook::GrowthBook;
 use growthbook_rust::dto::GrowthBookFeature;
+use growthbook_rust::growthbook::GrowthBook;
 use growthbook_rust::model_public::{FeatureResult, GrowthBookAttribute, GrowthBookAttributeValue};
 use growthbook_rust::sticky_bucket::{InMemoryStickyBucketService, StickyBucketService};
 
@@ -73,11 +73,8 @@ struct ExpectedResult {
 fn load_test_cases() -> Vec<TestCase> {
     let content = fs::read_to_string("tests/all_cases.json").expect("Failed to read all_cases.json");
     let all_cases: AllCases = serde_json::from_str(&content).expect("Failed to parse sections");
-    
-    all_cases.sticky_bucket
-        .into_iter()
-        .map(|v| parse_test_case(&v))
-        .collect()
+
+    all_cases.sticky_bucket.into_iter().map(|v| parse_test_case(&v)).collect()
 }
 
 /// Parses a single raw JSON value into a structured `TestCase`.
@@ -105,11 +102,7 @@ fn parse_test_case(case_value: &Value) -> TestCase {
 fn load_sticky_bucket_service(assignments: &[StickyAssignment]) -> Arc<InMemoryStickyBucketService> {
     let service = Arc::new(InMemoryStickyBucketService::new());
     for assignment in assignments {
-        service.save_assignments(
-            &assignment.attribute_name,
-            &assignment.attribute_value,
-            assignment.assignments.clone(),
-        );
+        service.save_assignments(&assignment.attribute_name, &assignment.attribute_value, assignment.assignments.clone());
     }
     service
 }
@@ -122,7 +115,6 @@ fn verify_feature_result(
 ) {
     if let Some(exp) = expected {
         assert_eq!(actual.value, exp.value, "Value mismatch for case: {}", case_name);
-        
         if let Some(exp_res) = &actual.experiment_result {
             assert_eq!(exp_res.in_experiment, exp.in_experiment, "InExperiment mismatch for case: {}", case_name);
             assert_eq!(exp_res.sticky_bucket_used, exp.sticky_bucket_used, "StickyBucketUsed mismatch for case: {}", case_name);
@@ -145,19 +137,13 @@ fn verify_assignments(
         let parts: Vec<&str> = doc_key.split("||").collect();
         let attr_name = parts[0];
         let attr_value = parts[1];
-        
+
         if !doc.assignments.is_empty() {
             let actual = service
                 .get_assignments(attr_name, attr_value)
                 .unwrap_or_else(|| panic!("Expected assignments for {} in case {}", doc_key, case_name));
-            
-            assert_eq!(
-                actual, 
-                doc.assignments, 
-                "Assignment mismatch for {} in case {}", 
-                doc_key, 
-                case_name
-            );
+
+            assert_eq!(actual, doc.assignments, "Assignment mismatch for {} in case {}", doc_key, case_name);
         }
     }
 }
@@ -172,9 +158,7 @@ fn test_sticky_bucket_scenarios() {
 
     for case in cases {
         println!("Running test case: {}", case.name);
-
         let service = load_sticky_bucket_service(&case.existing_assignments);
-        
         // Prepare User Attributes
         let mut user_attrs = Vec::new();
         for (k, v) in case.context.attributes {

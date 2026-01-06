@@ -60,12 +60,12 @@ impl GrowthBookFeatureRuleExperiment {
 
         // Sticky Bucketing Logic
         if let Some(service) = sticky_bucket_service {
-             if !self.disable_sticky_bucketing.unwrap_or(false) {
+            if !self.disable_sticky_bucketing.unwrap_or(false) {
                 let bucket_version = self.bucket_version.unwrap_or(0);
                 let min_bucket_version = self.min_bucket_version.unwrap_or(0);
                 let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
                 let sticky_key = format!("{}__{}", meta_key, bucket_version);
-                
+
                 let fallback_attribute = self.get_fallback_attribute();
                 let fallback_value = if feature_attribute != fallback_attribute {
                     user_attributes.find_value(&fallback_attribute)
@@ -75,25 +75,25 @@ impl GrowthBookFeatureRuleExperiment {
 
                 // Helper to get assignment from doc
                 let get_assignment = |attr_name: &str, attr_val: &str| -> Option<(String, i64)> {
-                     let assignments = service.get_assignments(attr_name, attr_val)?;
-                     // Iterate assignments to find matching key prefix
-                     for (key, variation_str) in assignments {
-                         // Check version blocking
-                         if let Some(version_str) = key.strip_prefix(&format!("{}__", meta_key)) {
-                             if let Ok(ver) = version_str.parse::<i64>() {
-                                 if ver < min_bucket_version {
-                                     return Some(("BLOCKED".to_string(), -1));
-                                 }
-                             }
-                         }
-                         
-                         if key == sticky_key {
-                             if let Ok(v) = variation_str.parse::<i64>() {
-                                 return Some((key, v));
-                             }
-                         }
-                     }
-                     None
+                    let assignments = service.get_assignments(attr_name, attr_val)?;
+                    // Iterate assignments to find matching key prefix
+                    for (key, variation_str) in assignments {
+                        // Check version blocking
+                        if let Some(version_str) = key.strip_prefix(&format!("{}__", meta_key)) {
+                            if let Ok(ver) = version_str.parse::<i64>() {
+                                if ver < min_bucket_version {
+                                    return Some(("BLOCKED".to_string(), -1));
+                                }
+                            }
+                        }
+
+                        if key == sticky_key {
+                            if let Ok(v) = variation_str.parse::<i64>() {
+                                return Some((key, v));
+                            }
+                        }
+                    }
+                    None
                 };
 
                 let mut sticky_variation_id: Option<i64> = None;
@@ -101,25 +101,29 @@ impl GrowthBookFeatureRuleExperiment {
                 // Check Hash Attribute
                 let hash_assign = get_assignment(feature_attribute, &user_value.to_string());
                 if let Some((_, var_id)) = hash_assign {
-                     if var_id == -1 { return None; } // Blocked
-                     sticky_variation_id = Some(var_id);
+                    if var_id == -1 {
+                        return None;
+                    } // Blocked
+                    sticky_variation_id = Some(var_id);
                 } else if let Some(fb_val) = fallback_value {
                     // Check Fallback Attribute
                     let fb_assign = get_assignment(&fallback_attribute, &fb_val.to_string());
-                     if let Some((_, var_id)) = fb_assign {
-                        if var_id == -1 { return None; } // Blocked
+                    if let Some((_, var_id)) = fb_assign {
+                        if var_id == -1 {
+                            return None;
+                        } // Blocked
                         sticky_variation_id = Some(var_id);
-                        
+
                         // Upgrade: Persist to hash attribute
                         let mut new_assignment = HashMap::new();
                         new_assignment.insert(sticky_key.clone(), var_id.to_string());
                         service.save_assignments(feature_attribute, &user_value.to_string(), new_assignment);
-                     }
+                    }
                 }
-                
+
                 if let Some(index) = sticky_variation_id {
                     let usize_index = index as usize;
-                     if usize_index < self.variations.len() {
+                    if usize_index < self.variations.len() {
                         let value = self.variations[usize_index].clone();
                         let (meta_value, _pass_through) = self.get_meta_value(usize_index);
                         return Some(FeatureResult::experiment(
@@ -139,7 +143,7 @@ impl GrowthBookFeatureRuleExperiment {
                         ));
                     }
                 }
-             }
+            }
         }
 
         let user_weight = HashCode::hash_code(&user_value.to_string(), &self.seed(feature_name), HashCodeVersion::from(self.hash_version)).unwrap_or(-1.0);
@@ -149,17 +153,17 @@ impl GrowthBookFeatureRuleExperiment {
             let usize_index = index as usize;
             let value = self.variations[usize_index].clone();
             let (meta_value, pass_through) = self.get_meta_value(usize_index);
-            
+
             // Save Sticky Bucket
             if !self.disable_sticky_bucketing.unwrap_or(false) && !pass_through {
-                 if let Some(service) = sticky_bucket_service {
-                      let bucket_version = self.bucket_version.unwrap_or(0);
-                      let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
-                      let sticky_key = format!("{}__{}", meta_key, bucket_version);
-                      let mut new_assignment = HashMap::new();
-                      new_assignment.insert(sticky_key, index.to_string());
-                      service.save_assignments(feature_attribute, &user_value.to_string(), new_assignment);
-                 }
+                if let Some(service) = sticky_bucket_service {
+                    let bucket_version = self.bucket_version.unwrap_or(0);
+                    let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
+                    let sticky_key = format!("{}__{}", meta_key, bucket_version);
+                    let mut new_assignment = HashMap::new();
+                    new_assignment.insert(sticky_key, index.to_string());
+                    service.save_assignments(feature_attribute, &user_value.to_string(), new_assignment);
+                }
             }
 
             if !pass_through {

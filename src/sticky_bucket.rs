@@ -1,12 +1,24 @@
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::fmt::Debug;
 use crate::model_public::GrowthBookAttribute;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::{Arc, RwLock};
 
 pub trait StickyBucketService: Send + Sync + Debug {
-    fn get_assignments(&self, attribute_name: &str, attribute_value: &str) -> Option<HashMap<String, String>>;
-    fn save_assignments(&self, attribute_name: &str, attribute_value: &str, assignments: HashMap<String, String>);
-    fn get_all_assignments(&self, attributes: &HashMap<String, GrowthBookAttribute>) -> HashMap<String, String>;
+    fn get_assignments(
+        &self,
+        attribute_name: &str,
+        attribute_value: &str,
+    ) -> Option<HashMap<String, String>>;
+    fn save_assignments(
+        &self,
+        attribute_name: &str,
+        attribute_value: &str,
+        assignments: HashMap<String, String>,
+    );
+    fn get_all_assignments(
+        &self,
+        attributes: &HashMap<String, GrowthBookAttribute>,
+    ) -> HashMap<String, String>;
 }
 
 #[derive(Debug, Default)]
@@ -22,28 +34,44 @@ impl InMemoryStickyBucketService {
         }
     }
 
-    fn get_key(&self, attribute_name: &str, attribute_value: &str) -> String {
+    fn get_key(
+        &self,
+        attribute_name: &str,
+        attribute_value: &str,
+    ) -> String {
         format!("{}||{}", attribute_name, attribute_value)
     }
 }
 
 impl StickyBucketService for InMemoryStickyBucketService {
-    fn get_assignments(&self, attribute_name: &str, attribute_value: &str) -> Option<HashMap<String, String>> {
+    fn get_assignments(
+        &self,
+        attribute_name: &str,
+        attribute_value: &str,
+    ) -> Option<HashMap<String, String>> {
         let storage = self.storage.read().unwrap();
         let key = self.get_key(attribute_name, attribute_value);
         storage.get(&key).cloned()
     }
 
-    fn save_assignments(&self, attribute_name: &str, attribute_value: &str, assignments: HashMap<String, String>) {
+    fn save_assignments(
+        &self,
+        attribute_name: &str,
+        attribute_value: &str,
+        assignments: HashMap<String, String>,
+    ) {
         let mut storage = self.storage.write().unwrap();
         let key = self.get_key(attribute_name, attribute_value);
-        
+
         // Merge with existing assignments
         let entry = storage.entry(key).or_default();
         entry.extend(assignments);
     }
 
-    fn get_all_assignments(&self, attributes: &HashMap<String, GrowthBookAttribute>) -> HashMap<String, String> {
+    fn get_all_assignments(
+        &self,
+        attributes: &HashMap<String, GrowthBookAttribute>,
+    ) -> HashMap<String, String> {
         let storage = self.storage.read().unwrap();
         let mut all_assignments = HashMap::new();
 

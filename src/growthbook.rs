@@ -35,14 +35,7 @@ impl GrowthBook {
                 merged_attributes.extend(call_attrs.clone());
             }
 
-            feature.get_value(
-                flag_name,
-                vec![],
-                &merged_attributes,
-                &self.forced_variations,
-                &self.features,
-                &self.sticky_bucket_service,
-            )
+            feature.get_value(flag_name, vec![], &merged_attributes, &self.forced_variations, &self.features, &self.sticky_bucket_service)
         } else {
             FeatureResult::unknown_feature()
         }
@@ -69,7 +62,7 @@ mod test {
 
         for value in cases.feature {
             let feature = EvalFeature::new(value);
-            
+
             // Skip tests involving savedGroups as they are not yet supported
             if let Some(context) = feature.feature.as_object() {
                 if context.contains_key("savedGroups") {
@@ -77,7 +70,7 @@ mod test {
                     continue;
                 }
             }
-            
+
             let gb_test_res = serde_json::from_value::<GrowthBookForTest>(feature.feature.clone());
             let gb_test = gb_test_res.unwrap_or_else(|_| panic!("Failed to convert to GrowthBookForTest case='{}'", feature.name));
             let gb = GrowthBook {
