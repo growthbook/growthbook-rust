@@ -88,6 +88,9 @@ pub struct GrowthBookFeatureRuleExperiment {
     pub meta: Option<Value>,
     pub filters: Option<Value>,
     pub condition: Option<Value>,
+    pub bucket_version: Option<i64>,
+    pub min_bucket_version: Option<i64>,
+    pub disable_sticky_bucketing: Option<bool>,
 }
 
 impl GrowthBookFeatureRuleParentData {

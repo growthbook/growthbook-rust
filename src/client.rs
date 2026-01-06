@@ -13,6 +13,7 @@ use crate::error::GrowthbookError;
 use crate::gateway::GrowthbookGateway;
 use crate::growthbook::GrowthBook;
 use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute};
+use crate::sticky_bucket::StickyBucketService;
 
 pub type OnFeatureUsageCallback = Arc<dyn Fn(String, FeatureResult) + Send + Sync>;
 pub type OnExperimentViewedCallback = Arc<dyn Fn(ExperimentResult) + Send + Sync>;
@@ -61,6 +62,7 @@ pub struct GrowthBookClientBuilder {
     on_refresh: Vec<OnRefreshCallback>,
     features: Option<HashMap<String, crate::dto::GrowthBookFeature>>,
     decryption_key: Option<String>,
+    sticky_bucket_service: Option<Arc<dyn StickyBucketService>>,
 }
 
 impl Default for GrowthBookClientBuilder {
@@ -84,6 +86,7 @@ impl GrowthBookClientBuilder {
             on_refresh: Vec::new(),
             features: None,
             decryption_key: None,
+            sticky_bucket_service: None,
         }
     }
 
@@ -192,6 +195,14 @@ impl GrowthBookClientBuilder {
         self
     }
 
+    pub fn sticky_bucket_service(
+        mut self,
+        sticky_bucket_service: Arc<dyn StickyBucketService>,
+    ) -> Self {
+        self.sticky_bucket_service = Some(sticky_bucket_service);
+        self
+    }
+
     pub async fn build(self) -> Result<GrowthBookClient, GrowthbookError> {
         // Gateway is optional now (for offline mode)
         let gateway = if let (Some(api_url), Some(client_key)) = (&self.api_url, &self.client_key) {
@@ -225,6 +236,7 @@ impl GrowthBookClientBuilder {
                 forced_variations: None,
                 features: self.features.clone().unwrap_or_default(), // Use cloned features if present
                 attributes: self.attributes,
+                sticky_bucket_service: self.sticky_bucket_service,
             })),
             cache: Some(cache),
             gateway: gateway_arc,
@@ -310,6 +322,7 @@ impl GrowthBookClient {
             forced_variations: response.forced_variations,
             features: features.unwrap_or_default(),
             attributes,
+            sticky_bucket_service: writable_config.sticky_bucket_service.clone(),
         };
 
         for callback in &self.on_refresh {
@@ -358,6 +371,7 @@ impl GrowthBookClient {
                     forced_variations: None,
                     features: HashMap::new(),
                     attributes: None,
+                    sticky_bucket_service: None,
                 }
             },
         }
