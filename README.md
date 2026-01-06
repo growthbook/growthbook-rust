@@ -158,3 +158,58 @@ let client = GrowthBookClientBuilder::new()
     .build()
     .await?;
 ```
+
+## Sticky Bucketing
+
+The SDK supports Sticky Bucketing to ensure users persist in their assigned variations, even if the user session changes or targeting conditions update.
+
+### Using the Default In-Memory Service
+
+For simple applications where persistence across restarts is not required (or for testing), you can use the built-in `InMemoryStickyBucketService`.
+
+```rust
+use std::sync::Arc;
+use growthbook_rust::sticky_bucket::InMemoryStickyBucketService;
+
+let sticky_service = Arc::new(InMemoryStickyBucketService::new());
+
+let client = GrowthBookClientBuilder::new()
+    .api_url(api_url)
+    .client_key(sdk_key)
+    .sticky_bucket_service(sticky_service)
+    .build()
+    .await?;
+```
+
+### Custom Sticky Bucket Implementation
+
+For production use cases requiring durable storage (Redis, Database, LocalStorage, etc.), you should implement the `StickyBucketService` trait.
+
+```rust
+use std::collections::HashMap;
+use growthbook_rust::sticky_bucket::StickyBucketService;
+use growthbook_rust::model_public::GrowthBookAttribute;
+
+#[derive(Debug)]
+pub struct MyRedisStickyBucketService {
+    // ... connection pool etc.
+}
+
+impl StickyBucketService for MyRedisStickyBucketService {
+    fn get_assignments(&self, attribute_name: &str, attribute_value: &str) -> Option<HashMap<String, String>> {
+        // Fetch from Redis usually returning Key (experiment_key) -> Value (variation_key)
+        // ...
+        None 
+    }
+
+    fn save_assignments(&self, attribute_name: &str, attribute_value: &str, assignments: HashMap<String, String>) {
+        // Write to Redis
+        // ...
+    }
+
+    fn get_all_assignments(&self, attributes: &HashMap<String, GrowthBookAttribute>) -> HashMap<String, String> {
+         // Batch fetch all assignments for the given user attributes
+         HashMap::new()
+    }
+}
+```
