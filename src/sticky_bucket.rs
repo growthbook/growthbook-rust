@@ -39,7 +39,7 @@ impl StickyBucketService for InMemoryStickyBucketService {
         let key = self.get_key(attribute_name, attribute_value);
         
         // Merge with existing assignments
-        let entry = storage.entry(key).or_insert_with(HashMap::new);
+        let entry = storage.entry(key).or_default();
         entry.extend(assignments);
     }
 
