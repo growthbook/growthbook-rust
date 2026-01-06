@@ -19,12 +19,23 @@ impl GrowthBookFeatureRuleExperiment {
         forced_variations: &Option<HashMap<String, i64>>,
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
     ) -> Option<FeatureResult> {
-        if let Some(feature_attribute) = &self.hash_attribute {
-            self.check_experiment(&feature_name, user_attributes, forced_variations, feature_attribute, sticky_bucket_service)
+        let feature_attribute = if let Some(hash_attribute) = &self.hash_attribute {
+            if user_attributes.find_value(hash_attribute).is_some() {
+                hash_attribute.clone()
+            } else if let Some(fallback_attribute) = &self.fallback_attribute {
+                if user_attributes.find_value(fallback_attribute).is_some() {
+                    fallback_attribute.clone()
+                } else {
+                    hash_attribute.clone()
+                }
+            } else {
+                hash_attribute.clone()
+            }
         } else {
-            let fallback_attribute = self.get_fallback_attribute();
-            self.check_experiment(&feature_name, user_attributes, forced_variations, &fallback_attribute, sticky_bucket_service)
-        }
+            self.get_fallback_attribute()
+        };
+
+        self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, sticky_bucket_service)
     }
 
     fn check_experiment(
