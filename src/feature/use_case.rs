@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::dto::{GrowthBookFeature, GrowthBookFeatureRule};
 use crate::model_public::{FeatureResult, GrowthBookAttribute};
+use crate::sticky_bucket::StickyBucketService;
 
 impl GrowthBookFeature {
     pub fn get_value(
@@ -10,7 +12,8 @@ impl GrowthBookFeature {
         feature_name_decorate: Vec<String>,
         user_attributes: &Vec<GrowthBookAttribute>,
         forced_variations: &Option<HashMap<String, i64>>,
-        all_features: HashMap<String, GrowthBookFeature>,
+        all_features: &HashMap<String, GrowthBookFeature>,
+        sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
     ) -> FeatureResult {
         if let Some(rules) = &self.rules {
             for rule in rules {
@@ -26,7 +29,7 @@ impl GrowthBookFeature {
                         }
                     },
                     GrowthBookFeatureRule::Experiment(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, forced_variations) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, forced_variations, sticky_bucket_service) {
                             return feature;
                         }
                     },
@@ -41,7 +44,7 @@ impl GrowthBookFeature {
                             updated_decorate.push(String::from(feature_name));
 
                             let parent_response = if let Some(parent_feature) = all_features.get(parent_feature_name) {
-                                parent_feature.get_value(parent_feature_name, updated_decorate, user_attributes, forced_variations, all_features.clone())
+                                parent_feature.get_value(parent_feature_name, updated_decorate, user_attributes, forced_variations, all_features, sticky_bucket_service)
                             } else {
                                 FeatureResult::unknown_feature()
                             };
