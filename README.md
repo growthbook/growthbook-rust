@@ -15,7 +15,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-growthbook-rust = "0.0.5"
+growthbook-rust = "0.1.0"
 ```
 
 ## Quick Usage
