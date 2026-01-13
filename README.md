@@ -1,5 +1,6 @@
 # GrowthBook Rust SDK
 
+![Status](https://github.com/growthbook/growthbook-rust/actions/workflows/ci.yml/badge.svg?branch=main)
 [![Crates.io](https://img.shields.io/crates/v/growthbook-rust)](https://crates.io/crates/growthbook-rust)
 [![Docs](https://docs.rs/growthbook-rust/badge.svg)](https://docs.rs/growthbook-rust)
 
@@ -14,7 +15,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-growthbook-rust = "0.0.1"
+growthbook-rust = "0.0.4"
 ```
 
 ## Quick Usage
