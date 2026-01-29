@@ -55,6 +55,12 @@ fn verify(
         "$veq" => VersionComparison::veq(parent_attribute, feature_attribute, user_attributes),
         "$vne" => VersionComparison::vne(parent_attribute, feature_attribute, user_attributes),
         "$elemMatch" => ElemMatchComparison::matches(parent_attribute, feature_attribute, user_attributes, array_size, verify),
+        "$ini" => OperatorCondition::ini(parent_attribute, feature_attribute, user_attributes, verify),
+        "$nini" => OperatorCondition::nini(parent_attribute, feature_attribute, user_attributes, verify),
+        "$alli" => OperatorCondition::alli(parent_attribute, feature_attribute, user_attributes, verify),
+        "$regexi" => RegexComparison::matches_ignore_case(parent_attribute, feature_attribute, user_attributes),
+        "$notRegex" => RegexComparison::not_matches(parent_attribute, feature_attribute, user_attributes),
+        "$notRegexi" => RegexComparison::not_matches_ignore_case(parent_attribute, feature_attribute, user_attributes),
         _ => non_operator_or_condition(parent_attribute, feature_attribute, user_attributes),
     }
 }
