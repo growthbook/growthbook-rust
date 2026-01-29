@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use reqwest::header::{HeaderMap, HeaderValue, CONNECTION};
 use reqwest::Client;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Extension};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+#[cfg(feature = "tracing")]
+use reqwest_middleware::Extension;
+#[cfg(feature = "tracing")]
 use reqwest_tracing::{OtelName, TracingMiddleware};
 
 use crate::error::GrowthbookError;
@@ -11,7 +14,7 @@ pub struct HttpClient;
 
 impl HttpClient {
     pub fn create_http_client(
-        name: &str,
+        #[allow(unused_variables)] name: &str,
         timeout_duration: Duration,
     ) -> Result<ClientWithMiddleware, GrowthbookError> {
         let mut default_headers = HeaderMap::new();
@@ -25,10 +28,16 @@ impl HttpClient {
             .build()
             .map_err(GrowthbookError::from)?;
 
-        let client = ClientBuilder::new(default_config_client)
-            .with_init(Extension(OtelName(String::from(name).into())))
-            .with(TracingMiddleware::default())
-            .build();
-        Ok(client)
+        #[allow(unused_mut)]
+        let mut client_builder = ClientBuilder::new(default_config_client);
+
+        #[cfg(feature = "tracing")]
+        {
+            client_builder = client_builder
+                .with_init(Extension(OtelName(String::from(name).into())))
+                .with(TracingMiddleware::default());
+        }
+
+        Ok(client_builder.build())
     }
 }
