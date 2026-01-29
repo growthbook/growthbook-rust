@@ -44,13 +44,15 @@ impl OperatorCondition {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(feature_values) => {
                 if let Some(GrowthBookAttributeValue::Array(user_values)) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    feature_values.iter().all(|feature_item| user_values.iter().any(|user_item| {
-                        if case_insensitive {
-                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
-                        } else {
-                            feature_item == user_item
-                        }
-                    }))
+                    feature_values.iter().all(|feature_item| {
+                        user_values.iter().any(|user_item| {
+                            if case_insensitive {
+                                feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
+                            } else {
+                                feature_item == user_item
+                            }
+                        })
+                    })
                 } else {
                     false
                 }

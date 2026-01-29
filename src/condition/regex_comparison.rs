@@ -35,10 +35,7 @@ impl RegexComparison {
         user_attributes: &[GrowthBookAttribute],
     ) -> bool {
         if let GrowthBookAttributeValue::String(feature_value) = &feature_attribute.value {
-            if let Ok(regex) = regex::RegexBuilder::new(feature_value)
-                .case_insensitive(true)
-                .build()
-            {
+            if let Ok(regex) = regex::RegexBuilder::new(feature_value).case_insensitive(true).build() {
                 if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
                     match &user_value {
                         GrowthBookAttributeValue::Array(it) => it.iter().any(|item| regex.is_match(&item.to_string())),

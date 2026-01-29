@@ -85,12 +85,7 @@ async fn test_case_insensitive_operators() {
         }
     });
 
-    let client = GrowthBookClientBuilder::new()
-        .features_json(features_json)
-        .unwrap()
-        .build()
-        .await
-        .expect("Failed to build client");
+    let client = GrowthBookClientBuilder::new().features_json(features_json).unwrap().build().await.expect("Failed to build client");
 
     // Test $ini
     // Case 1: Exact match - should pass
