@@ -4,7 +4,15 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use tokio::time::sleep;
+#[cfg(feature = "tracing")]
 use tracing::error;
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! error {
+    ($($arg:tt)*) => {
+        let _ = format_args!($($arg)*);
+    };
+}
 
 use crate::cache::{FeatureCache, InMemoryCache};
 use crate::dto::GrowthBookResponse;
