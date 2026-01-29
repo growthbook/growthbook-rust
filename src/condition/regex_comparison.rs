@@ -28,4 +28,43 @@ impl RegexComparison {
             true
         }
     }
+
+    pub fn matches_ignore_case(
+        parent_attribute: Option<&GrowthBookAttribute>,
+        feature_attribute: &GrowthBookAttribute,
+        user_attributes: &[GrowthBookAttribute],
+    ) -> bool {
+        if let GrowthBookAttributeValue::String(feature_value) = &feature_attribute.value {
+            if let Ok(regex) = regex::RegexBuilder::new(feature_value).case_insensitive(true).build() {
+                if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+                    match &user_value {
+                        GrowthBookAttributeValue::Array(it) => it.iter().any(|item| regex.is_match(&item.to_string())),
+                        it => regex.is_match(&it.to_string()),
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            true
+        }
+    }
+
+    pub fn not_matches(
+        parent_attribute: Option<&GrowthBookAttribute>,
+        feature_attribute: &GrowthBookAttribute,
+        user_attributes: &[GrowthBookAttribute],
+    ) -> bool {
+        !Self::matches(parent_attribute, feature_attribute, user_attributes)
+    }
+
+    pub fn not_matches_ignore_case(
+        parent_attribute: Option<&GrowthBookAttribute>,
+        feature_attribute: &GrowthBookAttribute,
+        user_attributes: &[GrowthBookAttribute],
+    ) -> bool {
+        !Self::matches_ignore_case(parent_attribute, feature_attribute, user_attributes)
+    }
 }
