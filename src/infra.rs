@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use reqwest::header::{HeaderMap, HeaderValue, CONNECTION};
 use reqwest::Client;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 #[cfg(feature = "tracing")]
 use reqwest_middleware::Extension;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 #[cfg(feature = "tracing")]
 use reqwest_tracing::{OtelName, TracingMiddleware};
 
@@ -33,9 +33,7 @@ impl HttpClient {
 
         #[cfg(feature = "tracing")]
         {
-            client_builder = client_builder
-                .with_init(Extension(OtelName(String::from(name).into())))
-                .with(TracingMiddleware::default());
+            client_builder = client_builder.with_init(Extension(OtelName(String::from(name).into()))).with(TracingMiddleware::default());
         }
 
         Ok(client_builder.build())
