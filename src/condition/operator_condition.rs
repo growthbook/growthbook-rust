@@ -48,9 +48,7 @@ impl OperatorCondition {
                         user_values.iter().any(|user_item| {
                             if case_insensitive {
                                 match (feature_item, user_item) {
-                                    (GrowthBookAttributeValue::String(f), GrowthBookAttributeValue::String(u)) => {
-                                        f.to_lowercase() == u.to_lowercase()
-                                    }
+                                    (GrowthBookAttributeValue::String(f), GrowthBookAttributeValue::String(u)) => f.to_lowercase() == u.to_lowercase(),
                                     _ => feature_item == user_item,
                                 }
                             } else {
