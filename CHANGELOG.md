@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Features
 - **Case-insensitive operators**: Added support for case-insensitive operators `regexi`, `notRegexi`, `ini`, `nini` and `alli` in feature flag conditions.
+- Tracing made optional. 
 
 ## [0.1.0]
 
