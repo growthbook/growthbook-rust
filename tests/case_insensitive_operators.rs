@@ -11,7 +11,7 @@ async fn test_case_insensitive_operators() {
                 {
                     "condition": {
                         "tag": {
-                            "$ini": ["Foo", "Bar"]
+                            "$ini": ["Foo", "Bar", "115"]
                         }
                     },
                     "force": true
@@ -96,6 +96,8 @@ async fn test_case_insensitive_operators() {
     let created_attrs = GrowthBookAttribute::from(json!({"tag": "foo"})).unwrap();
     assert!(client.is_on("ini-test", Some(created_attrs)));
     let created_attrs = GrowthBookAttribute::from(json!({"tag": "BAR"})).unwrap();
+    assert!(client.is_on("ini-test", Some(created_attrs)));
+    let created_attrs = GrowthBookAttribute::from(json!({"tag": "115"})).unwrap();
     assert!(client.is_on("ini-test", Some(created_attrs)));
 
     // Case 3: No match - should fail
