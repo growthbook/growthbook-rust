@@ -38,12 +38,19 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         user_attributes: &[GrowthBookAttribute],
+        case_insensitive: bool,
         _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
     ) -> bool {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(feature_values) => {
                 if let Some(GrowthBookAttributeValue::Array(user_values)) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    feature_values.iter().all(|feature_item| user_values.iter().any(|user_item| feature_item == user_item))
+                    feature_values.iter().all(|feature_item| user_values.iter().any(|user_item| {
+                        if case_insensitive {
+                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
+                        } else {
+                            feature_item == user_item
+                        }
+                    }))
                 } else {
                     false
                 }
@@ -107,14 +114,27 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         user_attributes: &[GrowthBookAttribute],
+        case_insensitive: bool,
         _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
     ) -> bool {
         if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
             match &feature_attribute.value {
                 GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().any(|feature_item| match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| feature_item.to_string() == user_item.to_string()),
+                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| {
+                        if case_insensitive {
+                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
+                        } else {
+                            feature_item.to_string() == user_item.to_string()
+                        }
+                    }),
                     GrowthBookAttributeValue::Empty => false,
-                    it => feature_item.to_string() == it.to_string(),
+                    it => {
+                        if case_insensitive {
+                            feature_item.to_string().to_lowercase() == it.to_string().to_lowercase()
+                        } else {
+                            feature_item.to_string() == it.to_string()
+                        }
+                    },
                 }),
                 _ => false,
             }
@@ -127,14 +147,27 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         user_attributes: &[GrowthBookAttribute],
+        case_insensitive: bool,
         _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
     ) -> bool {
         if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
             match &feature_attribute.value {
                 GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().all(|feature_item| !match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| feature_item.to_string() == user_item.to_string()),
+                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| {
+                        if case_insensitive {
+                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
+                        } else {
+                            feature_item.to_string() == user_item.to_string()
+                        }
+                    }),
                     GrowthBookAttributeValue::Empty => false,
-                    it => feature_item.to_string() == it.to_string(),
+                    it => {
+                        if case_insensitive {
+                            feature_item.to_string().to_lowercase() == it.to_string().to_lowercase()
+                        } else {
+                            feature_item.to_string() == it.to_string()
+                        }
+                    },
                 }),
                 _ => false,
             }
@@ -161,63 +194,6 @@ impl OperatorCondition {
                 }
             },
             GrowthBookAttributeValue::Empty => true,
-            _ => false,
-        }
-    }
-    pub fn ini(
-        parent_attribute: Option<&GrowthBookAttribute>,
-        feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
-    ) -> bool {
-        if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            match &feature_attribute.value {
-                GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().any(|feature_item| match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()),
-                    GrowthBookAttributeValue::Empty => false,
-                    it => feature_item.to_string().to_lowercase() == it.to_string().to_lowercase(),
-                }),
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    pub fn nini(
-        parent_attribute: Option<&GrowthBookAttribute>,
-        feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
-    ) -> bool {
-        if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            match &feature_attribute.value {
-                GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().all(|feature_item| !match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()),
-                    GrowthBookAttributeValue::Empty => false,
-                    it => feature_item.to_string().to_lowercase() == it.to_string().to_lowercase(),
-                }),
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-
-    pub fn alli(
-        parent_attribute: Option<&GrowthBookAttribute>,
-        feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &[GrowthBookAttribute], bool) -> bool,
-    ) -> bool {
-        match &feature_attribute.value {
-            GrowthBookAttributeValue::Array(feature_values) => {
-                if let Some(GrowthBookAttributeValue::Array(user_values)) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    feature_values.iter().all(|feature_item| user_values.iter().any(|user_item| feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()))
-                } else {
-                    false
-                }
-            },
             _ => false,
         }
     }
