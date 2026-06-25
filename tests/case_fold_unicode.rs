@@ -2,11 +2,10 @@ use growthbook_rust::client::{GrowthBookClientBuilder, GrowthBookClientTrait};
 use growthbook_rust::model_public::GrowthBookAttribute;
 use serde_json::json;
 
-// R6 (verify-only): the case-insensitive operators must fold case the same way
+// Behavior consistency check - 
 // JS `String.prototype.toLowerCase()` does — the Unicode Default Case Algorithm,
 // NOT an ASCII-only fold. Rust's `str::to_lowercase()` already follows that
-// algorithm, so these should match JS with no code change. This test locks in
-// that behavior so a future "ASCII fold" change can't silently diverge.
+// algorithm and This test is to ensure that behavior.
 //
 // Key non-ASCII cases (must NOT be treated as equal):
 //   "İ".to_lowercase()      = "i\u{307}"  (i + combining dot) ≠ "i"
