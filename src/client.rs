@@ -72,6 +72,7 @@ pub struct GrowthBookClientBuilder {
     features: Option<HashMap<String, crate::dto::GrowthBookFeature>>,
     decryption_key: Option<String>,
     sticky_bucket_service: Option<Arc<dyn StickyBucketService>>,
+    saved_groups: SavedGroups,
 }
 
 impl Default for GrowthBookClientBuilder {
@@ -96,6 +97,7 @@ impl GrowthBookClientBuilder {
             features: None,
             decryption_key: None,
             sticky_bucket_service: None,
+            saved_groups: SavedGroups::new(),
         }
     }
 
@@ -196,6 +198,17 @@ impl GrowthBookClientBuilder {
         Ok(self)
     }
 
+    /// Set saved groups for the manual (non-API) load path, from the raw
+    /// `{ "group_id": [values] }` payload shape. Saved groups loaded from the
+    /// API response are handled separately during refresh.
+    pub fn saved_groups(
+        mut self,
+        saved_groups: serde_json::Value,
+    ) -> Self {
+        self.saved_groups = saved_groups_from_value(Some(&saved_groups));
+        self
+    }
+
     pub fn decryption_key(
         mut self,
         decryption_key: String,
@@ -246,7 +259,7 @@ impl GrowthBookClientBuilder {
                 features: self.features.clone().unwrap_or_default(), // Use cloned features if present
                 attributes: self.attributes,
                 sticky_bucket_service: self.sticky_bucket_service,
-                saved_groups: SavedGroups::new(),
+                saved_groups: self.saved_groups,
             })),
             cache: Some(cache),
             gateway: gateway_arc,
