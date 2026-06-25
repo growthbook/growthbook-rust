@@ -1,0 +1,9 @@
+{
+  "_doc": "Skiplist for the corpus freshness check (tests/scripts/check_corpus_freshness.py). Two buckets:\n  * \"missing\" — case names JS has and Rust deliberately doesn't carry yet. Use when JS adds a case for a feature Rust doesn't (yet) support.\n  * \"drift\"   — case names where Rust deliberately keeps a different body from JS. Use sparingly — body-drift on a shared case is usually a bug.\nExtras (Rust has, JS doesn't) are reported but never fail CI, so they don't need an entry here.\nAdd a brief reason in `_reasons` whenever you add an entry so future maintainers know why.",
+  "missing": {},
+  "drift": {},
+  "_reasons": {
+    "_example_missing": "evalCondition::case name -> short reason (e.g. 'tests $someOperator that Rust doesn't implement yet').",
+    "_example_drift": "evalCondition::case name -> short reason (e.g. 'JS shipped a behavioral change in case X; Rust intentionally kept the prior expectation pending review')."
+  }
+}
