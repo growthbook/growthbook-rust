@@ -20,9 +20,11 @@ Source-of-truth URL is configurable via --js-source or env GB_JS_CASES_URL.
 Defaults to the JS SDK's main-branch raw URL.
 
 Exit codes:
-  0 — no actionable findings (or all on skiplist)
+  0 — no actionable findings (or all on skiplist), OR the JS source could
+      not be fetched (network blip) — that is a warning, not a failure, so a
+      transient outage doesn't break unrelated builds
   1 — at least one missing or drifted case isn't on the skiplist
-  2 — fetch / parse / IO error (treated as build infra failure)
+  2 — local IO/parse error (missing all_cases.json or bad skiplist)
 
 Run locally:
   python3 tests/scripts/check_corpus_freshness.py
@@ -252,13 +254,22 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="output machine-readable JSON instead of text")
     args = parser.parse_args(argv)
 
+    # Local corpus / skiplist problems are real repo errors → hard fail.
     try:
-        js_cases = _fetch_js_cases(args.js_source)
         local_cases = _load_local_cases()
         skip = _load_skiplist()
     except RuntimeError as e:
         print(f"corpus check infra error: {e}", file=sys.stderr)
         return 2
+
+    # A failure to fetch the JS source (network blip, GitHub outage) must not
+    # break the build — the check is advisory drift detection, not a gate on
+    # the SDK itself. Warn and pass.
+    try:
+        js_cases = _fetch_js_cases(args.js_source)
+    except RuntimeError as e:
+        print(f"WARNING: corpus freshness check skipped — could not fetch JS cases: {e}", file=sys.stderr)
+        return 0
 
     actionable_missing, skipped_missing, extras, actionable_drift, skipped_drift = _diff(js_cases, local_cases, skip)
     js_spec, local_spec = _spec_versions(js_cases, local_cases)
