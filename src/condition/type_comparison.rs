@@ -1,3 +1,4 @@
+use crate::condition::eval_context::ConditionEvalContext;
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
@@ -7,10 +8,10 @@ impl TypeComparison {
     pub fn matches(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
         if let GrowthBookAttributeValue::String(feature_type) = &feature_attribute.value {
-            if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+            if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
                 match user_value {
                     GrowthBookAttributeValue::String(_) => feature_type == "string",
                     GrowthBookAttributeValue::Int(_) => feature_type == "number",

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::condition::eval_context::SavedGroups;
 use crate::dto::{GrowthBookFeature, GrowthBookFeatureRuleKind, GrowthBookFeatureRuleParentData};
 use crate::model_public::{FeatureResult, GrowthBookAttribute};
 use crate::sticky_bucket::StickyBucketService;
@@ -18,6 +19,7 @@ enum ParentOutcome {
 }
 
 impl GrowthBookFeature {
+    #[allow(clippy::too_many_arguments)]
     pub fn get_value(
         &self,
         feature_name: &str,
@@ -26,12 +28,22 @@ impl GrowthBookFeature {
         forced_variations: &Option<HashMap<String, i64>>,
         all_features: &HashMap<String, GrowthBookFeature>,
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
+        saved_groups: &SavedGroups,
     ) -> FeatureResult {
         if let Some(rules) = &self.rules {
             for rule in rules {
                 // parentConditions are evaluated first, for every rule kind.
                 if let Some(parents) = &rule.parent_conditions {
-                    match evaluate_parent_conditions(parents, feature_name, &feature_name_decorate, user_attributes, forced_variations, all_features, sticky_bucket_service) {
+                    match evaluate_parent_conditions(
+                        parents,
+                        feature_name,
+                        &feature_name_decorate,
+                        user_attributes,
+                        forced_variations,
+                        all_features,
+                        sticky_bucket_service,
+                        saved_groups,
+                    ) {
                         ParentOutcome::ShortCircuit(result) => return *result,
                         ParentOutcome::SkipRule => continue,
                         ParentOutcome::Continue => {},
@@ -40,12 +52,12 @@ impl GrowthBookFeature {
 
                 match &rule.kind {
                     GrowthBookFeatureRuleKind::Force(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, saved_groups) {
                             return feature;
                         }
                     },
                     GrowthBookFeatureRuleKind::Rollout(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, saved_groups) {
                             return feature;
                         }
                     },
@@ -72,6 +84,7 @@ fn evaluate_parent_conditions(
     forced_variations: &Option<HashMap<String, i64>>,
     all_features: &HashMap<String, GrowthBookFeature>,
     sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
+    saved_groups: &SavedGroups,
 ) -> ParentOutcome {
     for parent in parents {
         let parent_feature_name = &parent.id;
@@ -83,7 +96,15 @@ fn evaluate_parent_conditions(
         updated_decorate.push(String::from(feature_name));
 
         let parent_response = if let Some(parent_feature) = all_features.get(parent_feature_name) {
-            parent_feature.get_value(parent_feature_name, updated_decorate, user_attributes, forced_variations, all_features, sticky_bucket_service)
+            parent_feature.get_value(
+                parent_feature_name,
+                updated_decorate,
+                user_attributes,
+                forced_variations,
+                all_features,
+                sticky_bucket_service,
+                saved_groups,
+            )
         } else {
             FeatureResult::unknown_feature()
         };
@@ -92,7 +113,7 @@ fn evaluate_parent_conditions(
             return ParentOutcome::ShortCircuit(Box::new(FeatureResult::cyclic_prerequisite()));
         }
 
-        if !parent.is_met(parent_response) {
+        if !parent.is_met(parent_response, saved_groups) {
             if parent.gate {
                 // Gating prerequisite failed → block the whole feature.
                 return ParentOutcome::ShortCircuit(Box::new(FeatureResult::prerequisite()));

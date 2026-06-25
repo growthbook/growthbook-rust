@@ -1,3 +1,4 @@
+use crate::condition::eval_context::ConditionEvalContext;
 use regex::Regex;
 
 use crate::extensions::FindGrowthBookAttribute;
@@ -9,59 +10,59 @@ impl VersionComparison {
     pub fn vgt(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.gt(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.gt(feature_version))
     }
 
     pub fn vgte(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.ge(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.ge(feature_version))
     }
 
     pub fn vlt(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.lt(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.lt(feature_version))
     }
 
     pub fn vlte(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.le(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.le(feature_version))
     }
 
     pub fn veq(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.eq(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.eq(feature_version))
     }
 
     pub fn vne(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, user_attributes, |feature_version, user_version| user_version.ne(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.ne(feature_version))
     }
 }
 
 fn evaluate(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
-    user_attributes: &[GrowthBookAttribute],
+    ctx: &ConditionEvalContext,
     condition: fn(&str, &str) -> bool,
 ) -> bool {
-    if let Some(GrowthBookAttributeValue::String(user_version)) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+    if let Some(GrowthBookAttributeValue::String(user_version)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
         let feature_version = feature_attribute.value.to_string();
         condition(&normalize(&feature_version), &normalize(&user_version))
     } else {

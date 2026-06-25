@@ -1,3 +1,4 @@
+use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::coverage::model::Coverage;
 use crate::dto::GrowthBookFeatureRuleForce;
@@ -10,6 +11,7 @@ impl GrowthBookFeatureRuleForce {
         &self,
         feature_name: &str,
         user_attributes: &Vec<GrowthBookAttribute>,
+        saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
         if let Some(filters) = &self.filters {
             let hash_attribute = self.get_fallback_attribute();
@@ -19,7 +21,7 @@ impl GrowthBookFeatureRuleForce {
         }
 
         if let Some(feature_attributes) = self.conditions() {
-            if feature_attributes.matches(user_attributes) {
+            if feature_attributes.matches(&ConditionEvalContext::new(user_attributes, saved_groups)) {
                 self.check_range_or_force(feature_name, user_attributes)
             } else {
                 None

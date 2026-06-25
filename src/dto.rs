@@ -13,6 +13,7 @@ pub struct GrowthBookResponse {
     pub forced_variations: Option<HashMap<String, i64>>,
     pub features: Option<HashMap<String, GrowthBookFeature>>,
     pub encrypted_features: Option<String>,
+    pub saved_groups: Option<Value>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
