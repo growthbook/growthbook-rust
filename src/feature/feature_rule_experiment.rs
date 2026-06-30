@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
+use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
 use crate::extensions::{FindGrowthBookAttribute, JsonHelper};
 use crate::hash::{HashCode, HashCodeVersion};
@@ -56,6 +57,15 @@ impl GrowthBookFeatureRuleExperiment {
 
         if let Some(forced_variation) = self.forced_variation(feature_name, user_attributes, forced_variations) {
             return Some(forced_variation);
+        }
+
+        // Exclude if the rule's condition doesn't pass. Matches JS runExperiment
+        // step 8 — evaluated *after* forced variations (step 4), so a forced
+        // variation still fires even when the condition would exclude the user.
+        if let Some(feature_attributes) = self.conditions() {
+            if !feature_attributes.matches(user_attributes) {
+                return None;
+            }
         }
 
         // Sticky Bucketing Logic
