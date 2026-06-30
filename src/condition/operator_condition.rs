@@ -74,6 +74,11 @@ impl OperatorCondition {
             !match &user_value {
                 GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
                 GrowthBookAttributeValue::Empty => true,
+                // inverse of `eq`: nested-object conditions resolve the parent
+                // key to the whole object and rely on the flattened-string
+                // comparison rather than structural `PartialEq`.
+                GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
+                // Scalars use strict equality, matching JS `actual !== expected`.
                 it => it == &feature_attribute.value,
             }
         } else {

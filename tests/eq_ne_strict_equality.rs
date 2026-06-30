@@ -43,3 +43,32 @@ async fn eq_ne_are_strict_lt_still_coerces() {
     // $lt 5 vs "3" → true (numeric coercion still applies for ordering ops)
     assert!(client.is_on("lt-num", Some(attrs(json!("3")))), "$lt 5 must still coerce string \"3\"");
 }
+
+// `$ne` must stay the exact inverse of `$eq`, including for nested-object
+// conditions that resolve the parent key to a whole object and compare via the
+// flattened-string path. (Guards against `$eq` and `$ne` using different
+// object comparisons, which would break the `ne == !eq` invariant.)
+#[tokio::test]
+async fn ne_is_the_inverse_of_eq_for_nested_objects() {
+    let features_json = json!({
+        "eq-obj": {
+            "defaultValue": false,
+            "rules": [{ "condition": { "tags": { "$eq": "world" } }, "force": true }]
+        },
+        "ne-obj": {
+            "defaultValue": false,
+            "rules": [{ "condition": { "tags": { "$ne": "world" } }, "force": true }]
+        }
+    });
+
+    let client = GrowthBookClientBuilder::new().features_json(features_json).unwrap().build().await.expect("Failed to build client");
+
+    // user `tags` is a nested object that flattens to "world".
+    let attrs = GrowthBookAttribute::from(json!({ "tags": { "hello": "world" } })).unwrap();
+
+    let eq = client.is_on("eq-obj", Some(attrs.clone()));
+    let ne = client.is_on("ne-obj", Some(attrs));
+    assert!(eq, "$eq should match the flattened object");
+    assert!(!ne, "$ne should be the inverse of $eq");
+    assert_ne!(eq, ne, "ne must be the exact inverse of eq");
+}
