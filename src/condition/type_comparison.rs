@@ -18,13 +18,8 @@ impl TypeComparison {
                     GrowthBookAttributeValue::Float(_) => feature_type == "number",
                     GrowthBookAttributeValue::Bool(_) => feature_type == "boolean",
                     GrowthBookAttributeValue::Array(_) => feature_type == "array",
-                    GrowthBookAttributeValue::Object(it) => {
-                        if it.is_empty() {
-                            feature_type == "null"
-                        } else {
-                            feature_type == "object"
-                        }
-                    },
+                    // Any object, including the empty object `{}`, is "object".
+                    GrowthBookAttributeValue::Object(_) => feature_type == "object",
                     GrowthBookAttributeValue::Empty => feature_type == "null",
                 }
             } else {

@@ -37,7 +37,9 @@ pub struct GrowthBookFeatureRule {
 
 #[derive(Clone, Debug)]
 pub enum GrowthBookFeatureRuleKind {
-    Experiment(GrowthBookFeatureRuleExperiment),
+    // Boxed: the experiment struct is far larger than the other variants, so
+    // boxing it keeps the per-rule enum small in the evaluation hot path.
+    Experiment(Box<GrowthBookFeatureRuleExperiment>),
     Rollout(GrowthBookFeatureRuleRollout),
     Force(GrowthBookFeatureRuleForce),
     // Parent-only rules (or no-op rules) carry no value of their own.
@@ -97,7 +99,7 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
         // Classification preserves the precedence of the former untagged enum
         // (Experiment → Rollout → Force → Empty).
         let kind = if let Some(variations) = variations {
-            GrowthBookFeatureRuleKind::Experiment(GrowthBookFeatureRuleExperiment {
+            GrowthBookFeatureRuleKind::Experiment(Box::new(GrowthBookFeatureRuleExperiment {
                 key,
                 variations,
                 name,
@@ -111,11 +113,11 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                 ranges,
                 meta,
                 filters,
-                condition,
+                condition: value_to_condition_map(condition),
                 bucket_version,
                 min_bucket_version,
                 disable_sticky_bucketing,
-            })
+            }))
         } else if let Some(force) = force {
             if let Some(coverage) = coverage {
                 GrowthBookFeatureRuleKind::Rollout(GrowthBookFeatureRuleRollout {
@@ -199,7 +201,7 @@ pub struct GrowthBookFeatureRuleExperiment {
     pub ranges: Option<Vec<Vec<f32>>>,
     pub meta: Option<Value>,
     pub filters: Option<Value>,
-    pub condition: Option<Value>,
+    pub condition: Option<HashMap<String, Value>>,
     pub bucket_version: Option<i64>,
     pub min_bucket_version: Option<i64>,
     pub disable_sticky_bucketing: Option<bool>,
@@ -240,6 +242,10 @@ impl GrowthBookFeatureRuleForce {
 }
 
 impl GrowthBookFeatureRuleExperiment {
+    pub fn conditions(&self) -> Option<Vec<GrowthBookAttribute>> {
+        option_map_to_attributes(self.condition.clone())
+    }
+
     pub fn seed(
         &self,
         feature_name: &str,
@@ -280,7 +286,7 @@ impl GrowthBookFeatureRuleExperiment {
             filters: self.filters.clone(),
             variations: self.variations.clone(),
             weights: self.weights.clone(),
-            condition: self.condition.clone(),
+            condition: self.condition.clone().map(|map| Value::Object(map.into_iter().collect())),
         }
     }
 }

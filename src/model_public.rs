@@ -140,7 +140,7 @@ impl From<Value> for GrowthBookAttributeValue {
         } else if value.is_array() {
             let vec: Vec<GrowthBookAttributeValue> = value.as_array().unwrap_or(&vec![]).iter().map(|item| GrowthBookAttributeValue::from(item.clone())).collect();
             GrowthBookAttributeValue::Array(vec)
-        } else {
+        } else if value.is_object() {
             let objects: Vec<_> = value
                 .as_object()
                 .unwrap_or(&Map::new())
@@ -148,11 +148,13 @@ impl From<Value> for GrowthBookAttributeValue {
                 .map(|(k, v)| GrowthBookAttribute::new(k.clone(), GrowthBookAttributeValue::from(v.clone())))
                 .collect();
 
-            if objects.is_empty() {
-                GrowthBookAttributeValue::Empty
-            } else {
-                GrowthBookAttributeValue::Object(objects)
-            }
+            // An object — even an empty `{}` — has JS type "object", which is
+            // distinct from null. Keeping empty objects as `Object(vec![])`
+            // (rather than collapsing to `Empty`) lets `$type` tell them apart.
+            GrowthBookAttributeValue::Object(objects)
+        } else {
+            // null (and anything not matched above) is the null/empty value.
+            GrowthBookAttributeValue::Empty
         }
     }
 }

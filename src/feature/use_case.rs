@@ -62,7 +62,7 @@ impl GrowthBookFeature {
                         }
                     },
                     GrowthBookFeatureRuleKind::Experiment(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, forced_variations, sticky_bucket_service) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, forced_variations, sticky_bucket_service, saved_groups) {
                             return feature;
                         }
                     },
