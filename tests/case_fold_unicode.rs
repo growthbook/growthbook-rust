@@ -2,7 +2,7 @@ use growthbook_rust::client::{GrowthBookClientBuilder, GrowthBookClientTrait};
 use growthbook_rust::model_public::GrowthBookAttribute;
 use serde_json::json;
 
-// Behavior consistency check - 
+// Behavior consistency check -
 // JS `String.prototype.toLowerCase()` does — the Unicode Default Case Algorithm,
 // NOT an ASCII-only fold. Rust's `str::to_lowercase()` already follows that
 // algorithm and This test is to ensure that behavior.
