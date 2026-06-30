@@ -74,6 +74,11 @@ impl OperatorCondition {
             !match &user_value {
                 GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
                 GrowthBookAttributeValue::Empty => true,
+                // inverse of `eq`: nested-object conditions resolve the parent
+                // key to the whole object and rely on the flattened-string
+                // comparison rather than structural `PartialEq`.
+                GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
+                // Scalars use strict equality, matching JS `actual !== expected`.
                 it => it == &feature_attribute.value,
             }
         } else {
@@ -91,7 +96,15 @@ impl OperatorCondition {
             match &user_value {
                 GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
                 GrowthBookAttributeValue::Empty => false,
-                it => it.to_string() == feature_attribute.value.to_string(),
+                // A nested-object condition like {tags: {hello: "world"}} reaches
+                // here via the recursive object path, with the parent key
+                // resolving to the whole object; the flattened-string comparison
+                // is load-bearing for that case, so keep it for objects.
+                GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
+                // Scalars use strict equality, matching JS `actual === expected`:
+                // no coercion, so `$eq: 5` does NOT match the string "5". The
+                // numeric-coercion path is intentionally kept for $lt/$gt only.
+                it => it == &feature_attribute.value,
             }
         } else {
             false
