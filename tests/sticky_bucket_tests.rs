@@ -171,6 +171,7 @@ fn test_sticky_bucket_scenarios() {
             features: case.context.features,
             attributes: None,
             sticky_bucket_service: Some(service.clone()),
+            saved_groups: Default::default(),
         };
 
         // Execute Check

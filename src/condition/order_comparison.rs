@@ -1,3 +1,4 @@
+use crate::condition::eval_context::ConditionEvalContext;
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
@@ -7,13 +8,13 @@ impl OrderComparison {
     pub fn gt(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
         array_size: bool,
     ) -> bool {
         evaluate(
             parent_attribute,
             feature_attribute,
-            user_attributes,
+            ctx,
             array_size,
             |feature_number, user_number| user_number.gt(feature_number),
             |feature_string, user_string| user_string.gt(feature_string),
@@ -23,13 +24,13 @@ impl OrderComparison {
     pub fn gte(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
         array_size: bool,
     ) -> bool {
         evaluate(
             parent_attribute,
             feature_attribute,
-            user_attributes,
+            ctx,
             array_size,
             |feature_number, user_number| user_number.ge(feature_number),
             |feature_string, user_string| user_string.ge(feature_string),
@@ -39,13 +40,13 @@ impl OrderComparison {
     pub fn lt(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
         array_size: bool,
     ) -> bool {
         evaluate(
             parent_attribute,
             feature_attribute,
-            user_attributes,
+            ctx,
             array_size,
             |feature_number, user_number| user_number.lt(feature_number),
             |feature_string, user_string| user_string.lt(feature_string),
@@ -55,13 +56,13 @@ impl OrderComparison {
     pub fn lte(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
-        user_attributes: &[GrowthBookAttribute],
+        ctx: &ConditionEvalContext,
         array_size: bool,
     ) -> bool {
         evaluate(
             parent_attribute,
             feature_attribute,
-            user_attributes,
+            ctx,
             array_size,
             |feature_number, user_number| user_number.le(feature_number),
             |feature_string, user_string| user_string.le(feature_string),
@@ -72,25 +73,25 @@ impl OrderComparison {
 fn evaluate(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
-    user_attributes: &[GrowthBookAttribute],
+    ctx: &ConditionEvalContext,
     array_size: bool,
     string_condition: fn(&str, &str) -> bool,
     number_condition: fn(&f64, &f64) -> bool,
 ) -> bool {
     if feature_attribute.value.is_number() {
-        number_evaluate(parent_attribute, feature_attribute, user_attributes, array_size, number_condition)
+        number_evaluate(parent_attribute, feature_attribute, ctx, array_size, number_condition)
     } else {
-        string_evaluate(parent_attribute, feature_attribute, user_attributes, string_condition)
+        string_evaluate(parent_attribute, feature_attribute, ctx, string_condition)
     }
 }
 
 fn string_evaluate(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
-    user_attributes: &[GrowthBookAttribute],
+    ctx: &ConditionEvalContext,
     condition: fn(&str, &str) -> bool,
 ) -> bool {
-    if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+    if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
         let feature_value = feature_attribute.value.to_string();
         match user_value {
             GrowthBookAttributeValue::Array(it) => it.iter().any(|item| condition(&feature_value, &item.to_string())),
@@ -104,11 +105,11 @@ fn string_evaluate(
 fn number_evaluate(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
-    user_attributes: &[GrowthBookAttribute],
+    ctx: &ConditionEvalContext,
     array_size: bool,
     condition: fn(&f64, &f64) -> bool,
 ) -> bool {
-    if let Some(user_value) = user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+    if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
         if let (Some(feature_number), Some(user_numbers)) = (get_feature_number(feature_attribute), get_user_numbers(&user_value, array_size)) {
             user_numbers.iter().any(|number| condition(&feature_number, number))
         } else {
