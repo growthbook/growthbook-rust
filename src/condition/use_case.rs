@@ -115,7 +115,14 @@ fn object(
     it: &[GrowthBookAttribute],
 ) -> bool {
     if it.is_empty() {
-        user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key).is_none()
+        // A non-operator condition `{key: {}}` is a deep-equality check, so it
+        // matches only when the user's value at `key` is itself an empty object
+        // `{}`. A missing attribute (or any non-object / non-empty value) does
+        // not match.
+        matches!(
+            user_attributes.find_value(&parent_attribute.unwrap_or(feature_attribute).key),
+            Some(GrowthBookAttributeValue::Object(user_object)) if user_object.is_empty()
+        )
     } else {
         it.iter().all(|next| {
             let parent = feature_attribute.aggregate_key(parent_attribute);
