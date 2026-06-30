@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
+use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
 use crate::extensions::{FindGrowthBookAttribute, JsonHelper};
@@ -19,6 +20,7 @@ impl GrowthBookFeatureRuleExperiment {
         user_attributes: &Vec<GrowthBookAttribute>,
         forced_variations: &Option<HashMap<String, i64>>,
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
+        saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
         let feature_attribute = if let Some(hash_attribute) = &self.hash_attribute {
             if user_attributes.find_value(hash_attribute).is_some() {
@@ -36,9 +38,10 @@ impl GrowthBookFeatureRuleExperiment {
             self.get_fallback_attribute()
         };
 
-        self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, sticky_bucket_service)
+        self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, sticky_bucket_service, saved_groups)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn check_experiment(
         &self,
         feature_name: &&str,
@@ -46,6 +49,7 @@ impl GrowthBookFeatureRuleExperiment {
         forced_variations: &Option<HashMap<String, i64>>,
         feature_attribute: &str,
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
+        saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
         let user_value = user_attributes.find_value(feature_attribute)?;
 
@@ -63,7 +67,7 @@ impl GrowthBookFeatureRuleExperiment {
         // step 8 — evaluated *after* forced variations (step 4), so a forced
         // variation still fires even when the condition would exclude the user.
         if let Some(feature_attributes) = self.conditions() {
-            if !feature_attributes.matches(user_attributes) {
+            if !feature_attributes.matches(&ConditionEvalContext::new(user_attributes, saved_groups)) {
                 return None;
             }
         }
