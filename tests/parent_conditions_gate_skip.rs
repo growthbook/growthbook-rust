@@ -1,7 +1,7 @@
 use growthbook_rust::client::{GrowthBookClientBuilder, GrowthBookClientTrait};
 use serde_json::json;
 
-// R2 regression: a parentCondition with `gate: false` that fails should skip
+// a parentCondition with `gate: false` that fails should skip
 // only that rule and fall through to the next, not short-circuit the whole
 // feature with source=prerequisite.
 //
