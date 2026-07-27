@@ -15,6 +15,7 @@ pub enum GrowthbookErrorCode {
     MissingEnvironmentVariable,
     GrowthbookGateway,
     GrowthbookGatewayDeserialize,
+    GrowthbookGatewayHttpStatus,
     InvalidResponseValueType,
     GrowthBookAttributeIsNotObject,
     ConfigError,
@@ -24,6 +25,8 @@ pub enum GrowthbookErrorCode {
 pub struct GrowthbookError {
     pub code: GrowthbookErrorCode,
     pub message: String,
+    /// The HTTP status code, if this error came from a response.
+    pub status: Option<u16>,
 }
 
 impl GrowthbookError {
@@ -31,7 +34,11 @@ impl GrowthbookError {
         code: GrowthbookErrorCode,
         message: &str,
     ) -> Self {
-        GrowthbookError { code, message: String::from(message) }
+        GrowthbookError {
+            code,
+            message: String::from(message),
+            status: None,
+        }
     }
 }
 
@@ -55,24 +62,32 @@ impl From<Box<dyn Error>> for GrowthbookError {
         Self {
             code: GrowthbookErrorCode::GenericError,
             message: error.to_string(),
+            status: None,
         }
     }
 }
 
 impl From<reqwest_middleware::Error> for GrowthbookError {
     fn from(error: reqwest_middleware::Error) -> Self {
+        let status = match &error {
+            reqwest_middleware::Error::Reqwest(e) => e.status().map(|s| s.as_u16()),
+            reqwest_middleware::Error::Middleware(_) => None,
+        };
         Self {
             code: GrowthbookErrorCode::GrowthbookGateway,
             message: error.to_string(),
+            status,
         }
     }
 }
 
 impl From<reqwest::Error> for GrowthbookError {
     fn from(error: reqwest::Error) -> Self {
+        let status = error.status().map(|s| s.as_u16());
         Self {
             code: GrowthbookErrorCode::GrowthbookGatewayDeserialize,
             message: error.to_string(),
+            status,
         }
     }
 }
@@ -82,6 +97,7 @@ impl From<VarError> for GrowthbookError {
         Self {
             code: GrowthbookErrorCode::MissingEnvironmentVariable,
             message: error.to_string(),
+            status: None,
         }
     }
 }
@@ -91,6 +107,7 @@ impl From<ParseIntError> for GrowthbookError {
         Self {
             code: GrowthbookErrorCode::ParseError,
             message: error.to_string(),
+            status: None,
         }
     }
 }
@@ -100,6 +117,7 @@ impl From<serde_json::Error> for GrowthbookError {
         Self {
             code: GrowthbookErrorCode::ParseError,
             message: error.to_string(),
+            status: None,
         }
     }
 }
@@ -109,15 +127,19 @@ impl From<OutOfRangeError> for GrowthbookError {
         Self {
             code: GrowthbookErrorCode::DurationOutOfRangeError,
             message: error.to_string(),
+            status: None,
         }
     }
 }
 
 impl From<Response> for GrowthbookError {
+    /// Never reads the body (`From` can't be async), so it can't leak it.
     fn from(response: Response) -> Self {
+        let status = response.status().as_u16();
         Self {
-            code: GrowthbookErrorCode::GrowthbookGateway,
-            message: format!("Failed to get features. StatusCode={}", response.status()),
+            code: GrowthbookErrorCode::GrowthbookGatewayHttpStatus,
+            message: format!("Failed to get features: unexpected response status {status}"),
+            status: Some(status),
         }
     }
 }

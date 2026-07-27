@@ -1,7 +1,3 @@
-use std::hash::Hasher;
-
-use hashers::fnv::FNV1aHasher32;
-
 pub enum HashCodeVersion {
     V1,
     V2,
@@ -67,10 +63,18 @@ impl HashCode {
         remainder as f32 / 10000.0
     }
 
+    /// 32-bit FNV-1a. Implemented directly to drop the `hashers` crate,
+    /// which pulled in unmaintained `fxhash` (RUSTSEC-2025-0057).
     fn fnv1a_32(data: &[u8]) -> u32 {
-        let mut hasher = FNV1aHasher32::default();
-        hasher.write(data);
-        hasher.finish() as u32
+        const FNV_OFFSET_BASIS: u32 = 0x811c_9dc5;
+        const FNV_PRIME: u32 = 0x0100_0193;
+
+        let mut hash = FNV_OFFSET_BASIS;
+        for byte in data {
+            hash ^= u32::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+        hash
     }
 }
 
