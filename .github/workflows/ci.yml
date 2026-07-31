@@ -25,10 +25,13 @@ jobs:
     - uses: swatinem/rust-cache@v2
 
     - name: Cargo Build
-      run: cargo build --verbose
+      # --locked validates Cargo.lock is in sync and, on the MSRV toolchain,
+      # fails loudly if the lockfile is ever regenerated into a format 1.75
+      # can't parse (e.g. lockfile v4) instead of silently drifting.
+      run: cargo build --verbose --locked
 
     - name: Cargo Test
-      run: cargo test --verbose
+      run: cargo test --verbose --locked
 
     - name: Cargo fmt
       if: matrix.toolchain == 'stable' # Only run fmt on stable toolchain
