@@ -26,7 +26,11 @@ impl RegexComparison {
                 false
             }
         } else {
-            true
+            // A non-string regex pattern (e.g. `{x: {$regex: 5}}`) matches nothing.
+            // JS `getRegex(expected)` calls `expected.replace(...)` before compiling,
+            // so a non-string pattern throws and is caught as `false` — it is *not*
+            // coerced to `/5/`. Mirror that: no match.
+            false
         }
     }
 
@@ -49,7 +53,9 @@ impl RegexComparison {
                 false
             }
         } else {
-            true
+            // See `matches`: a non-string regex pattern matches nothing, mirroring
+            // JS `getRegex` throwing before it can compile the pattern.
+            false
         }
     }
 
