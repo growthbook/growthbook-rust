@@ -31,8 +31,9 @@ change** to the feature-rule model.
   parent with `gate: true` returns a `prerequisite` result.
 - **Experiment-rule `condition` is now enforced** (evaluated after forced
   variations, matching JS `runExperiment`).
-- **`$eq` / `$ne` no longer coerce scalar types** — `5` no longer equals `"5"`.
-  (`$lt` / `$gt` still coerce, matching JS `<` / `>`.)
+- **`$eq` / `$ne` no longer coerce across JS types** — `5` no longer equals the
+  string `"5"`, and `true` no longer equals `1`. Numbers still compare by value
+  (`5` equals `5.0`), and `$lt` / `$gt` keep full coercion, all matching JS.
 - **`{}` is now typed `"object"`, not `"null"`.** A `{ x: {} }` condition now
   requires the attribute to be an actual empty object.
 - **A non-string `$regex` pattern** (e.g. `{ x: { $regex: 5 } }`) now matches
