@@ -22,6 +22,22 @@ impl GrowthBook {
         option_user_attributes: &Option<Vec<GrowthBookAttribute>>,
     ) -> FeatureResult {
         if let Some(feature) = self.features.get(flag_name) {
+            // Fast path: no instance-level attributes — evaluate with call-time attrs as-is
+            // (avoids allocating a merged Vec on the hot path).
+            if self.attributes.is_none() {
+                let empty = Vec::new();
+                let user_attributes = option_user_attributes.as_ref().unwrap_or(&empty);
+                return feature.get_value(
+                    flag_name,
+                    vec![],
+                    user_attributes,
+                    &self.forced_variations,
+                    &self.features,
+                    &self.sticky_bucket_service,
+                    &self.saved_groups,
+                );
+            }
+
             // Merge instance attributes with call-time attributes
             let mut merged_attributes = Vec::new();
 
@@ -34,7 +50,7 @@ impl GrowthBook {
 
             // Add/Override with call-time attributes
             if let Some(call_attrs) = option_user_attributes {
-                merged_attributes.extend(call_attrs.clone());
+                merged_attributes.extend(call_attrs.iter().cloned());
             }
 
             feature.get_value(

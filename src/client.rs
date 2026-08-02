@@ -386,27 +386,40 @@ impl GrowthBookClient {
         builder.build().await
     }
 
-    fn read_gb(&self) -> GrowthBook {
+    /// Run `f` against the in-memory feature set without cloning it.
+    ///
+    /// Previously every evaluation cloned the entire `GrowthBook` (including the full
+    /// features `HashMap`) via `read_gb()`. At high QPS that dominated CPU even when
+    /// the feature payload was already cached and refreshed in the background.
+    fn with_gb<R>(
+        &self,
+        f: impl FnOnce(&GrowthBook) -> R,
+    ) -> R {
         match self.gb.read() {
-            Ok(rw_read_guard) => (*rw_read_guard).clone(),
+            Ok(rw_read_guard) => f(&rw_read_guard),
             Err(e) => {
-                error!("{}", format!("[growthbook-sdk] problem to reading gb mutex data returning empty {:?}", e));
-                GrowthBook {
+                error!(
+                    "[growthbook-sdk] problem reading gb mutex data, returning empty: {:?}",
+                    e
+                );
+                let empty = GrowthBook {
                     forced_variations: None,
                     features: HashMap::new(),
                     attributes: None,
                     sticky_bucket_service: None,
                     saved_groups: SavedGroups::new(),
-                }
+                };
+                f(&empty)
             },
         }
     }
+
     fn resolve_feature(
         &self,
         feature_name: &str,
         user_attributes: Option<Vec<GrowthBookAttribute>>,
     ) -> FeatureResult {
-        let result = self.read_gb().check(feature_name, &user_attributes);
+        let result = self.with_gb(|gb| gb.check(feature_name, &user_attributes));
 
         // 1. Trigger on_feature_usage only for successful evaluations
         // Exclude: unknownFeature, prerequisite, cyclicPrerequisite
@@ -478,8 +491,7 @@ impl GrowthBookClientTrait for GrowthBookClient {
     }
 
     fn total_features(&self) -> usize {
-        let gb_data = self.read_gb();
-        gb_data.features.len()
+        self.with_gb(|gb| gb.features.len())
     }
 }
 
