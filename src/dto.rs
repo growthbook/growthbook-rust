@@ -138,6 +138,8 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     filters,
                     seed,
                     condition: value_to_condition_map(condition),
+                    hash_attribute,
+                    fallback_attribute,
                 })
             }
         } else {
@@ -162,6 +164,8 @@ pub struct GrowthBookFeatureRuleForce {
     pub filters: Option<Value>,
     pub seed: Option<String>,
     condition: Option<HashMap<String, Value>>,
+    pub hash_attribute: Option<String>,
+    pub fallback_attribute: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -237,7 +241,7 @@ impl GrowthBookFeatureRuleForce {
     }
 
     pub fn get_fallback_attribute(&self) -> String {
-        String::from("id")
+        self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
 }
 

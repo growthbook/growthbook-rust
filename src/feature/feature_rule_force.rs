@@ -37,9 +37,20 @@ impl GrowthBookFeatureRuleForce {
         user_attributes: &Vec<GrowthBookAttribute>,
     ) -> Option<FeatureResult> {
         if let Some(range) = self.range() {
+            let seed = self.seed.clone().unwrap_or(feature_name.to_string());
+
+            // Resolve the hash attribute like the rollout path (and JS
+            // `getHashAttribute`): the rule's `hashAttribute` if the user has it,
+            // otherwise `fallbackAttribute` (defaulting to "id"). Previously this
+            // hardcoded "id", ignoring `hashAttribute` entirely.
+            if let Some(hash_attribute) = &self.hash_attribute {
+                if let Some(user_value) = user_attributes.find_value(hash_attribute) {
+                    return Coverage::check(&user_value, None, Some(range), &seed, self.hash_version, self.force.clone());
+                }
+            }
+
             let fallback_attribute = self.get_fallback_attribute();
             if let Some(user_value) = user_attributes.find_value(&fallback_attribute) {
-                let seed = self.seed.clone().unwrap_or(feature_name.to_string());
                 Coverage::check(&user_value, None, Some(range), &seed, self.hash_version, self.force.clone())
             } else {
                 None
