@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0]
 
-This release brings feature-flag evaluation in line with the GrowthBook JS SDK
-(the cross-SDK source of truth). Several fixes **intentionally change live flag
-decisions** — flags that use the affected rules or operators may evaluate
-differently immediately after upgrading. It also contains a **breaking Rust API
-change** to the feature-rule model.
+This release brings feature-flag evaluation in line with the GrowthBook JS and 
+other SDKs (the cross-SDK source of truth).
 
 ### ⚠️ Breaking Changes
 
