@@ -79,8 +79,9 @@ impl OperatorCondition {
                 // key to the whole object and rely on the flattened-string
                 // comparison rather than structural `PartialEq`.
                 GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars use strict equality, matching JS `actual !== expected`.
-                it => it == &feature_attribute.value,
+                // Scalars use JS `===`: strict across types, but `Int`/`Float`
+                // are one JS `number` type, so `5 === 5.0`.
+                it => it.strict_eq(&feature_attribute.value),
             }
         } else {
             true
@@ -102,10 +103,10 @@ impl OperatorCondition {
                 // resolving to the whole object; the flattened-string comparison
                 // is load-bearing for that case, so keep it for objects.
                 GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars use strict equality, matching JS `actual === expected`:
-                // no coercion, so `$eq: 5` does NOT match the string "5". The
-                // numeric-coercion path is intentionally kept for $lt/$gt only.
-                it => it == &feature_attribute.value,
+                // Scalars use JS `===`: no string coercion (so `$eq: 5` does NOT
+                // match "5"), but `Int`/`Float` are one JS `number` type, so
+                // `$eq: 5` matches `5.0`. Coercion stays on $lt/$gt only.
+                it => it.strict_eq(&feature_attribute.value),
             }
         } else {
             false

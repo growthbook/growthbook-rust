@@ -108,6 +108,21 @@ impl GrowthBookAttributeValue {
         self.to_string().replace('.', "").parse::<f64>().ok()
     }
 
+    /// Equality with JS `===` semantics. JSON has a single `number` type, so
+    /// `Int` and `Float` are the same type and compare by numeric value
+    /// (`5 === 5.0`). Every other pairing — including string-vs-number — falls
+    /// back to strict variant equality, so `5 !== "5"` and `true !== 1`.
+    pub fn strict_eq(
+        &self,
+        other: &GrowthBookAttributeValue,
+    ) -> bool {
+        match (self, other) {
+            (GrowthBookAttributeValue::Int(a), GrowthBookAttributeValue::Float(b)) => (*a as f64) == *b,
+            (GrowthBookAttributeValue::Float(a), GrowthBookAttributeValue::Int(b)) => *a == (*b as f64),
+            _ => self == other,
+        }
+    }
+
     pub fn to_value(&self) -> Value {
         match self {
             GrowthBookAttributeValue::Empty => Value::Null,

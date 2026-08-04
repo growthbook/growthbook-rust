@@ -40,3 +40,17 @@ jobs:
     - name: Cargo Clippy
       if: matrix.toolchain == 'stable' # Only run clippy on stable toolchain
       run: cargo clippy -- -D warnings # Treat warnings as errors
+
+  corpus_freshness:
+    # Drift check between tests/all_cases.json and the JS SDK's cases.json.
+    # Fails the build on any "missing" or body-"drift" case not listed in
+    # tests/scripts/corpus_skiplist.json. Extras (Rust's local additions) are
+    # reported but never fail.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Check corpus freshness vs JS SDK
+      run: python3 tests/scripts/check_corpus_freshness.py
