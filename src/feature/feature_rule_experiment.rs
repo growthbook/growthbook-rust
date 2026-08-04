@@ -53,23 +53,10 @@ impl GrowthBookFeatureRuleExperiment {
     ) -> Option<FeatureResult> {
         let user_value = user_attributes.find_value(feature_attribute)?;
 
-        if let Some((namespace, range)) = &self.namespace_range() {
-            if !Namespace::is_in(&user_value, namespace, range) {
-                return None;
-            }
-        }
-
+        // Step 4 (JS runExperiment): a forced variation fires before any
+        // targeting or sticky-bucket logic.
         if let Some(forced_variation) = self.forced_variation(feature_name, user_attributes, forced_variations) {
             return Some(forced_variation);
-        }
-
-        // Exclude if the rule's condition doesn't pass. Matches JS runExperiment
-        // step 8 — evaluated *after* forced variations (step 4), so a forced
-        // variation still fires even when the condition would exclude the user.
-        if let Some(feature_attributes) = self.conditions() {
-            if !feature_attributes.matches(&ConditionEvalContext::new(user_attributes, saved_groups)) {
-                return None;
-            }
         }
 
         // Sticky Bucketing Logic
@@ -160,6 +147,24 @@ impl GrowthBookFeatureRuleExperiment {
             }
         }
 
+        // Steps 7 & 8 (JS runExperiment) live inside `if (!foundStickyBucket)`:
+        // a user with a sticky assignment (returned above) skips namespace and
+        // condition targeting entirely.
+
+        // Step 7: exclude if the user is filtered out by namespace.
+        if let Some((namespace, range)) = &self.namespace_range() {
+            if !Namespace::is_in(&user_value, namespace, range) {
+                return None;
+            }
+        }
+
+        // Step 8: exclude if the rule's condition doesn't pass.
+        if let Some(feature_attributes) = self.conditions() {
+            if !feature_attributes.matches(&ConditionEvalContext::new(user_attributes, saved_groups)) {
+                return None;
+            }
+        }
+
         let user_weight = HashCode::hash_code(&user_value.to_string(), &self.seed(feature_name), HashCodeVersion::from(self.hash_version)).unwrap_or(-1.0);
         let ranges = self.ranges();
         let index = choose_variation(user_weight, ranges);
@@ -167,10 +172,8 @@ impl GrowthBookFeatureRuleExperiment {
             let usize_index = index as usize;
             // #18: more ranges than variations can yield an index past the end.
             // JS treats an invalid index as inExperiment=false; skip the rule
-            // instead of panicking.
-            let Some(value) = self.variations.get(usize_index).cloned() else {
-                return None;
-            };
+            // (via `?`) instead of panicking.
+            let value = self.variations.get(usize_index).cloned()?;
             let (meta_value, pass_through) = self.get_meta_value(usize_index);
 
             // Save Sticky Bucket
