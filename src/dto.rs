@@ -255,7 +255,16 @@ impl GrowthBookFeatureRuleExperiment {
 
     pub fn ranges(&self) -> Vec<Range> {
         if let Some(ranges) = self.ranges.clone() {
-            ranges.iter().map(|range| Range { start: range[0], end: range[1] }).collect()
+            // #18: a malformed tuple with fewer than two elements must not panic.
+            // A degenerate range (start >= end) matches nobody, mirroring JS where
+            // `n < undefined` is false.
+            ranges
+                .iter()
+                .map(|range| Range {
+                    start: range.first().copied().unwrap_or(0.0),
+                    end: range.get(1).copied().unwrap_or(0.0),
+                })
+                .collect()
         } else {
             Range::get_bucket_range(self.variations.len() as i64, &self.coverage, self.weights.clone())
         }
@@ -263,13 +272,20 @@ impl GrowthBookFeatureRuleExperiment {
 
     pub fn namespace_range(&self) -> Option<(String, Range)> {
         self.namespace.as_ref().map(|namespace| {
-            (
-                namespace[0].force_string(""),
-                Range {
-                    start: namespace[1].force_f32(0.0),
-                    end: namespace[2].force_f32(1.0),
-                },
-            )
+            // #18: a malformed namespace tuple (fewer than 3 elements) must not
+            // panic. JS `inNamespace` compares the hash against `undefined` and
+            // returns false, so the user is excluded — represent that as an empty
+            // range (start >= end) that `Range::in_range` never matches.
+            match (namespace.first(), namespace.get(1), namespace.get(2)) {
+                (Some(id), Some(start), Some(end)) => (
+                    id.force_string(""),
+                    Range {
+                        start: start.force_f32(0.0),
+                        end: end.force_f32(1.0),
+                    },
+                ),
+                _ => (String::new(), Range { start: 1.0, end: 0.0 }),
+            }
         })
     }
 

@@ -165,7 +165,12 @@ impl GrowthBookFeatureRuleExperiment {
         let index = choose_variation(user_weight, ranges);
         if index >= 0 {
             let usize_index = index as usize;
-            let value = self.variations[usize_index].clone();
+            // #18: more ranges than variations can yield an index past the end.
+            // JS treats an invalid index as inExperiment=false; skip the rule
+            // instead of panicking.
+            let Some(value) = self.variations.get(usize_index).cloned() else {
+                return None;
+            };
             let (meta_value, pass_through) = self.get_meta_value(usize_index);
 
             // Save Sticky Bucket
@@ -212,7 +217,14 @@ impl GrowthBookFeatureRuleExperiment {
             if let Some(found_forced_variation) = forced_variations.get(feature_name) {
                 let hash_attribute = self.hash_attribute.clone().unwrap_or(self.get_fallback_attribute());
                 if let Some(user_value) = user_attributes.find_value(&hash_attribute) {
-                    let forced_variation_index = *found_forced_variation as usize;
+                    // #18: a forced variation index from an untrusted response may be
+                    // negative or out of range. JS clamps an invalid index to
+                    // inExperiment=false; skip the forced variation here rather than
+                    // indexing out of bounds.
+                    let forced_variation_index = match usize::try_from(*found_forced_variation) {
+                        Ok(index) if index < self.variations.len() => index,
+                        _ => return None,
+                    };
                     let value = self.variations[forced_variation_index].clone();
                     let (meta_value, pass_through) = self.get_meta_value(forced_variation_index);
                     if !pass_through {
