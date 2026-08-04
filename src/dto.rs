@@ -35,6 +35,19 @@ pub struct GrowthBookFeatureRule {
     pub kind: GrowthBookFeatureRuleKind,
 }
 
+impl GrowthBookFeatureRule {
+    /// The rule's `filters`, regardless of kind. JS evaluates `rule.filters`
+    /// once in the rule loop (core.ts) for every rule type. `Rollout` rules
+    /// don't currently carry filters (see the rollout-filters follow-up).
+    pub fn filters(&self) -> Option<&Value> {
+        match &self.kind {
+            GrowthBookFeatureRuleKind::Force(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Experiment(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Rollout(_) | GrowthBookFeatureRuleKind::Empty => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum GrowthBookFeatureRuleKind {
     // Boxed: the experiment struct is far larger than the other variants, so

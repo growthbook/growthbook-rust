@@ -3,7 +3,6 @@ use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::coverage::model::Coverage;
 use crate::dto::GrowthBookFeatureRuleForce;
 use crate::extensions::FindGrowthBookAttribute;
-use crate::filter::use_case::Filter;
 use crate::model_public::{FeatureResult, GrowthBookAttribute};
 
 impl GrowthBookFeatureRuleForce {
@@ -13,13 +12,8 @@ impl GrowthBookFeatureRuleForce {
         user_attributes: &Vec<GrowthBookAttribute>,
         saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
-        if let Some(filters) = &self.filters {
-            let hash_attribute = self.get_fallback_attribute();
-            if Filter::is_filtered_out(filters, &hash_attribute, user_attributes) {
-                return None;
-            }
-        }
-
+        // Note: `filters` are evaluated once in the rule loop (get_value) for
+        // every rule kind, so the force path no longer checks them here.
         if let Some(feature_attributes) = self.conditions() {
             if feature_attributes.matches(&ConditionEvalContext::new(user_attributes, saved_groups)) {
                 self.check_range_or_force(feature_name, user_attributes)
