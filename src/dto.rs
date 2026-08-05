@@ -35,6 +35,19 @@ pub struct GrowthBookFeatureRule {
     pub kind: GrowthBookFeatureRuleKind,
 }
 
+impl GrowthBookFeatureRule {
+    /// The rule's `filters`, regardless of kind. JS evaluates `rule.filters`
+    /// once in the rule loop (core.ts) for every rule type. `Rollout` rules
+    /// don't currently carry filters (see the rollout-filters follow-up).
+    pub fn filters(&self) -> Option<&Value> {
+        match &self.kind {
+            GrowthBookFeatureRuleKind::Force(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Experiment(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Rollout(_) | GrowthBookFeatureRuleKind::Empty => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum GrowthBookFeatureRuleKind {
     // Boxed: the experiment struct is far larger than the other variants, so
@@ -138,6 +151,8 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     filters,
                     seed,
                     condition: value_to_condition_map(condition),
+                    hash_attribute,
+                    fallback_attribute,
                 })
             }
         } else {
@@ -162,6 +177,8 @@ pub struct GrowthBookFeatureRuleForce {
     pub filters: Option<Value>,
     pub seed: Option<String>,
     condition: Option<HashMap<String, Value>>,
+    pub hash_attribute: Option<String>,
+    pub fallback_attribute: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -237,7 +254,7 @@ impl GrowthBookFeatureRuleForce {
     }
 
     pub fn get_fallback_attribute(&self) -> String {
-        String::from("id")
+        self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
 }
 
@@ -255,7 +272,16 @@ impl GrowthBookFeatureRuleExperiment {
 
     pub fn ranges(&self) -> Vec<Range> {
         if let Some(ranges) = self.ranges.clone() {
-            ranges.iter().map(|range| Range { start: range[0], end: range[1] }).collect()
+            // #18: a malformed tuple with fewer than two elements must not panic.
+            // A degenerate range (start >= end) matches nobody, mirroring JS where
+            // `n < undefined` is false.
+            ranges
+                .iter()
+                .map(|range| Range {
+                    start: range.first().copied().unwrap_or(0.0),
+                    end: range.get(1).copied().unwrap_or(0.0),
+                })
+                .collect()
         } else {
             Range::get_bucket_range(self.variations.len() as i64, &self.coverage, self.weights.clone())
         }
@@ -263,13 +289,20 @@ impl GrowthBookFeatureRuleExperiment {
 
     pub fn namespace_range(&self) -> Option<(String, Range)> {
         self.namespace.as_ref().map(|namespace| {
-            (
-                namespace[0].force_string(""),
-                Range {
-                    start: namespace[1].force_f32(0.0),
-                    end: namespace[2].force_f32(1.0),
-                },
-            )
+            // #18: a malformed namespace tuple (fewer than 3 elements) must not
+            // panic. JS `inNamespace` compares the hash against `undefined` and
+            // returns false, so the user is excluded — represent that as an empty
+            // range (start >= end) that `Range::in_range` never matches.
+            match (namespace.first(), namespace.get(1), namespace.get(2)) {
+                (Some(id), Some(start), Some(end)) => (
+                    id.force_string(""),
+                    Range {
+                        start: start.force_f32(0.0),
+                        end: end.force_f32(1.0),
+                    },
+                ),
+                _ => (String::new(), Range { start: 1.0, end: 0.0 }),
+            }
         })
     }
 

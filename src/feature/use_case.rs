@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::condition::eval_context::SavedGroups;
 use crate::dto::{GrowthBookFeature, GrowthBookFeatureRuleKind, GrowthBookFeatureRuleParentData};
+use crate::filter::use_case::Filter;
 use crate::model_public::{FeatureResult, GrowthBookAttribute};
 use crate::sticky_bucket::StickyBucketService;
 
@@ -47,6 +48,15 @@ impl GrowthBookFeature {
                         ParentOutcome::ShortCircuit(result) => return *result,
                         ParentOutcome::SkipRule => continue,
                         ParentOutcome::Continue => {},
+                    }
+                }
+
+                // filters (mutual-exclusion / namespaces) apply to every rule
+                // kind, matching the JS rule loop. Each filter hashes on its own
+                // attribute, defaulting to "id".
+                if let Some(filters) = rule.filters() {
+                    if Filter::is_filtered_out(filters, "id", user_attributes) {
+                        continue;
                     }
                 }
 
