@@ -74,13 +74,14 @@ impl OperatorCondition {
         if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
             !match &user_value {
                 GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
-                GrowthBookAttributeValue::Empty => true,
                 // inverse of `eq`: nested-object conditions resolve the parent
                 // key to the whole object and rely on the flattened-string
                 // comparison rather than structural `PartialEq`.
                 GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars use strict equality, matching JS `actual !== expected`.
-                it => it == &feature_attribute.value,
+                // Scalars (and a present `null`, i.e. `Empty`) use JS `===`:
+                // `null !== 5` is true, `null !== null` is false, and `Int`/`Float`
+                // are one JS `number` type so `5 === 5.0`.
+                it => it.strict_eq(&feature_attribute.value),
             }
         } else {
             true
@@ -96,16 +97,16 @@ impl OperatorCondition {
         if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
             match &user_value {
                 GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
-                GrowthBookAttributeValue::Empty => false,
                 // A nested-object condition like {tags: {hello: "world"}} reaches
                 // here via the recursive object path, with the parent key
                 // resolving to the whole object; the flattened-string comparison
                 // is load-bearing for that case, so keep it for objects.
                 GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars use strict equality, matching JS `actual === expected`:
-                // no coercion, so `$eq: 5` does NOT match the string "5". The
-                // numeric-coercion path is intentionally kept for $lt/$gt only.
-                it => it == &feature_attribute.value,
+                // Scalars (and a present `null`, i.e. `Empty`) use JS `===`: no
+                // string coercion (so `$eq: 5` does NOT match "5"), `null === null`
+                // but `null !== 5`, and `Int`/`Float` are one JS `number` type so
+                // `$eq: 5` matches `5.0`. Coercion stays on $lt/$gt only.
+                it => it.strict_eq(&feature_attribute.value),
             }
         } else {
             false
