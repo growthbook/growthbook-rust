@@ -273,8 +273,12 @@ impl GrowthBookClientBuilder {
 
         // Initial load: Only when there are no manual features
         // If we have manual features, we assume they are the source of truth for start.
+        //
+        // `try_refresh()` surfaces errors (unlike `refresh()`, which only
+        // logs), so this makes `build()` fail fast on a bad initial load
+        // (behavior change — previously build() succeeded with no features).
         if self.features.is_none() {
-            client.refresh().await;
+            client.try_refresh().await?;
         }
 
         if client.auto_refresh && client.gateway.is_some() {
@@ -286,7 +290,19 @@ impl GrowthBookClientBuilder {
 }
 
 impl GrowthBookClient {
+    /// Fetches and applies the latest features, logging any failure. Existing
+    /// features are left untouched on error. Use [`Self::try_refresh`] when you
+    /// need to observe the error instead of only logging it.
     pub async fn refresh(&self) {
+        if let Err(e) = self.try_refresh().await {
+            error!("[growthbook-sdk] Failed to fetch features: {:?}", e);
+        }
+    }
+
+    /// Like [`Self::refresh`], but returns `Err` on failure (non-2xx, network
+    /// error, bad body) instead of only logging it; existing features are left
+    /// untouched on error.
+    pub async fn try_refresh(&self) -> Result<(), GrowthbookError> {
         if let Some(gateway) = &self.gateway {
             let cache_key = "features";
 
@@ -294,23 +310,22 @@ impl GrowthBookClient {
             if let Some(cache) = &self.cache {
                 if let Some(response) = cache.get(cache_key).await {
                     self.update_gb(response);
-                    return;
+                    return Ok(());
                 }
             }
 
             // Fetch from network
-            match gateway.get_features(None).await {
-                Ok(response) => {
-                    // Update cache
-                    if let Some(cache) = &self.cache {
-                        cache.set(cache_key, response.clone()).await;
-                    }
-                    self.update_gb(response);
-                },
-                Err(e) => {
-                    error!("[growthbook-sdk] Failed to fetch features: {:?}", e);
-                },
+            let response = gateway.get_features(None).await?;
+
+            // Update cache
+            if let Some(cache) = &self.cache {
+                cache.set(cache_key, response.clone()).await;
             }
+            self.update_gb(response);
+
+            Ok(())
+        } else {
+            Ok(())
         }
     }
 
@@ -359,6 +374,7 @@ impl GrowthBookClient {
         tokio::spawn(async move {
             loop {
                 sleep(client.refresh_interval).await;
+                // refresh() logs any failure internally.
                 client.refresh().await;
             }
         });

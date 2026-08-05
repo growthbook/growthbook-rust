@@ -114,10 +114,11 @@ impl From<OutOfRangeError> for GrowthbookError {
 }
 
 impl From<Response> for GrowthbookError {
+    /// Never reads the body (`From` can't be async), so it can't leak it.
     fn from(response: Response) -> Self {
         Self {
             code: GrowthbookErrorCode::GrowthbookGateway,
-            message: format!("Failed to get features. StatusCode={}", response.status()),
+            message: format!("Failed to get features: unexpected response status {}", response.status().as_u16()),
         }
     }
 }
