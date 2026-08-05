@@ -135,8 +135,10 @@ let client = GrowthBookClientBuilder::new()
     .build()
     .await?;
 
-// You can manually refresh features later
-client.refresh().await?;
+// You can manually refresh features later (logs on failure)
+client.refresh().await;
+// ...or observe the error yourself:
+client.try_refresh().await?;
 ```
 
 ## Encrypted Features

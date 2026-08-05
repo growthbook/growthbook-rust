@@ -87,8 +87,12 @@ impl RedactingSpanBackend {
         let mut cause_chain = format!("{error:?}");
 
         if let Some(SdkKeyExtension(key)) = ext.get::<SdkKeyExtension>() {
-            message = message.replace(key.as_str(), "[redacted]");
-            cause_chain = cause_chain.replace(key.as_str(), "[redacted]");
+            // Skip an empty key: `str::replace("", ..)` would splice the
+            // placeholder between every character.
+            if !key.is_empty() {
+                message = message.replace(key.as_str(), "[redacted]");
+                cause_chain = cause_chain.replace(key.as_str(), "[redacted]");
+            }
         }
 
         span.record(reqwest_tracing::OTEL_STATUS_CODE, "ERROR");

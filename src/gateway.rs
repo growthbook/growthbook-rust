@@ -66,6 +66,11 @@ impl GrowthbookGateway {
         error: GrowthbookError,
         key: &str,
     ) -> GrowthbookError {
+        // Guard against an empty key: `str::replace("", ..)` would splice the
+        // placeholder between every character.
+        if key.is_empty() {
+            return error;
+        }
         GrowthbookError {
             message: error.message.replace(key, "[redacted]"),
             ..error

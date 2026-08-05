@@ -60,8 +60,8 @@ mod test {
 
         assert!(client.is_on("my-feature", None), "initial load should have picked up the feature");
 
-        let refresh_result = client.refresh().await;
-        assert!(refresh_result.is_err(), "refresh() should surface the non-2xx response as an error");
+        let refresh_result = client.try_refresh().await;
+        assert!(refresh_result.is_err(), "try_refresh() should surface the non-2xx response as an error");
 
         assert!(client.is_on("my-feature", None), "a failed refresh must not clear out previously loaded features");
 

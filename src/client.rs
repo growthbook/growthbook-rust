@@ -274,10 +274,11 @@ impl GrowthBookClientBuilder {
         // Initial load: Only when there are no manual features
         // If we have manual features, we assume they are the source of truth for start.
         //
-        // `refresh()` now returns `Err` instead of only logging, so this
-        // makes `build()` fail fast on a bad initial load (behavior change).
+        // `try_refresh()` surfaces errors (unlike `refresh()`, which only
+        // logs), so this makes `build()` fail fast on a bad initial load
+        // (behavior change — previously build() succeeded with no features).
         if self.features.is_none() {
-            client.refresh().await?;
+            client.try_refresh().await?;
         }
 
         if client.auto_refresh && client.gateway.is_some() {
@@ -289,10 +290,19 @@ impl GrowthBookClientBuilder {
 }
 
 impl GrowthBookClient {
-    /// Fetches and applies the latest features. Returns `Err` on failure
-    /// (non-2xx, network error, bad body) instead of only logging it;
-    /// existing features are left untouched on error.
-    pub async fn refresh(&self) -> Result<(), GrowthbookError> {
+    /// Fetches and applies the latest features, logging any failure. Existing
+    /// features are left untouched on error. Use [`Self::try_refresh`] when you
+    /// need to observe the error instead of only logging it.
+    pub async fn refresh(&self) {
+        if let Err(e) = self.try_refresh().await {
+            error!("[growthbook-sdk] Failed to fetch features: {:?}", e);
+        }
+    }
+
+    /// Like [`Self::refresh`], but returns `Err` on failure (non-2xx, network
+    /// error, bad body) instead of only logging it; existing features are left
+    /// untouched on error.
+    pub async fn try_refresh(&self) -> Result<(), GrowthbookError> {
         if let Some(gateway) = &self.gateway {
             let cache_key = "features";
 
@@ -364,10 +374,8 @@ impl GrowthBookClient {
         tokio::spawn(async move {
             loop {
                 sleep(client.refresh_interval).await;
-                // Nothing else observes this Result, so log failures here.
-                if let Err(e) = client.refresh().await {
-                    error!("[growthbook-sdk] Failed to fetch features: {:?}", e);
-                }
+                // refresh() logs any failure internally.
+                client.refresh().await;
             }
         });
     }
