@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1]
+
+Bug-fix release — **no breaking changes**. Further aligns feature-rule
+evaluation and gateway error handling with the GrowthBook JS SDK.
+
+### 🐛 Bug Fixes
+- **Filters** now apply to **experiment rules** (previously ignored entirely) and
+  hash each filter on its own `attribute` (default `"id"`), matching JS
+  `getHashAttribute`. Multi-filter logic also now excludes a user unless they
+  match *all* filters, like JS.
+- **Force rules with a `range`** honor `hashAttribute` — they previously hashed
+  on a hardcoded `"id"`.
+- **`$eq` / `$ne` on a present `null` attribute** match JS: `null !== 5` is
+  `true`, `null === null` is `true`.
+- **Experiment `condition` and namespace targeting are skipped when a sticky
+  bucket assignment exists**, matching JS `runExperiment` (a bucketed user is no
+  longer dropped by a newly-added condition).
+- **Malformed feature JSON no longer panics the evaluator** — out-of-range
+  variation indices and short `ranges` / `namespace` tuples are handled instead
+  of indexing out of bounds.
+- **A non-string `$regex` pattern** matches nothing (was: matched everything).
+- **Invalid SDK key / non-2xx responses no longer silently wipe loaded
+  features.** `GrowthbookGateway::get_features` checks the HTTP status before
+  deserializing; `refresh()` / `build()` surface the failure and leave existing
+  features untouched.
+
+### 🔒 Security
+- The SDK key (embedded in the request URL) is now redacted from error messages
+  and from `reqwest-tracing` spans on failed requests.
+- Dropped the `hashers` dependency — and its transitive `fxhash`
+  (RUSTSEC-2025-0057) — in favor of a small in-crate FNV-1a implementation.
+
+### 🚀 Features
+- Added `GrowthBookClient::try_refresh()`, which returns `Err` on a failed
+  refresh; `refresh()` is unchanged and still logs.
+
+### ⚠️ Behavior change (non-API-breaking)
+- `build()` now returns `Err` on a failed initial load (invalid key, non-2xx, or
+  network error) instead of starting with zero features.
+
 ## [0.2.0]
 
 This release brings feature-flag evaluation in line with the GrowthBook JS and 

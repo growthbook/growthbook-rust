@@ -12,7 +12,7 @@ The official GrowthBook SDK for Rust. This crate provides an easy way to integra
 ## Installation
 
 [dependencies]
-growthbook-rust = "0.2.0"
+growthbook-rust = "0.2.1"
 
 Use the `GrowthBookClientBuilder` to create a client instance. This supports auto-refreshing features, caching, and callbacks.
 
