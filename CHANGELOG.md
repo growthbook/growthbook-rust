@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2](https://github.com/growthbook/growthbook-rust/compare/growthbook-rust-v0.2.1...growthbook-rust-v0.2.2) (2026-08-14)
+
+
+### Bug Fixes
+
+* refresh() returns Result, rejects non-2xx, and never leaks the SDK key ([0c2a1a5](https://github.com/growthbook/growthbook-rust/commit/0c2a1a5ca75cb703afcd8de7dcb6eebd75779f16))
+
 ## [0.2.1]
 
 Bug-fix release — **no breaking changes**. Further aligns feature-rule
@@ -128,4 +135,4 @@ other SDKs (the cross-SDK source of truth).
 ### 🎉 Initial Release
 - Official adoption of the GrowthBook Rust SDK.
 - Basic feature flag evaluation.
-- Remote feature fetching and caching. 
+- Remote feature fetching and caching.
