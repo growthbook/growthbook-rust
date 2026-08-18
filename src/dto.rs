@@ -37,13 +37,13 @@ pub struct GrowthBookFeatureRule {
 
 impl GrowthBookFeatureRule {
     /// The rule's `filters`, regardless of kind. JS evaluates `rule.filters`
-    /// once in the rule loop (core.ts) for every rule type. `Rollout` rules
-    /// don't currently carry filters (see the rollout-filters follow-up).
+    /// once in the rule loop (core.ts) for every rule type.
     pub fn filters(&self) -> Option<&Value> {
         match &self.kind {
             GrowthBookFeatureRuleKind::Force(it) => it.filters.as_ref(),
             GrowthBookFeatureRuleKind::Experiment(it) => it.filters.as_ref(),
-            GrowthBookFeatureRuleKind::Rollout(_) | GrowthBookFeatureRuleKind::Empty => None,
+            GrowthBookFeatureRuleKind::Rollout(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Empty => None,
         }
     }
 }
@@ -137,6 +137,8 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     force,
                     coverage,
                     range,
+                    seed,
+                    filters,
                     condition: value_to_condition_map(condition),
                     hash_attribute,
                     fallback_attribute,
@@ -196,6 +198,8 @@ pub struct GrowthBookFeatureRuleRollout {
     pub force: Value,
     pub coverage: f32,
     range: Option<Vec<f32>>,
+    pub seed: Option<String>,
+    pub filters: Option<Value>,
     condition: Option<HashMap<String, Value>>,
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,

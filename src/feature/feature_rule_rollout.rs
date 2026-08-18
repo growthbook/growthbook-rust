@@ -28,15 +28,19 @@ impl GrowthBookFeatureRuleRollout {
         feature_name: &str,
         user_attributes: &Vec<GrowthBookAttribute>,
     ) -> Option<FeatureResult> {
+        // JS hashes on `rule.seed || id` for every force rule (core.ts
+        // isIncludedInRollout), coverage- and range-based alike.
+        let seed = self.seed.clone().unwrap_or(feature_name.to_string());
+
         if let Some(hash_attribute) = &self.hash_attribute {
             if let Some(user_value) = user_attributes.find_value(hash_attribute) {
-                return Coverage::check(&user_value, Some(self.coverage), self.range(), feature_name, self.hash_version, self.force.clone());
+                return Coverage::check(&user_value, Some(self.coverage), self.range(), &seed, self.hash_version, self.force.clone());
             }
         }
 
         let fallback_attribute = self.get_fallback_attribute();
         if let Some(user_value) = user_attributes.find_value(&fallback_attribute) {
-            return Coverage::check(&user_value, Some(self.coverage), self.range(), feature_name, self.hash_version, self.force.clone());
+            return Coverage::check(&user_value, Some(self.coverage), self.range(), &seed, self.hash_version, self.force.clone());
         }
 
         None
