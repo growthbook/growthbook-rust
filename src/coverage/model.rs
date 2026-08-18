@@ -23,7 +23,11 @@ impl Coverage {
                     None
                 }
             } else if let Some(coverage) = option_coverage {
-                if coverage.gt(&user_weight) {
+                // JS (isIncludedInRollout): `coverage === 0` excludes everyone
+                // before hashing, otherwise the boundary is inclusive
+                // (`n <= coverage`), so a user hashing exactly to the coverage
+                // value is included.
+                if coverage != 0.0 && user_weight <= coverage {
                     Some(FeatureResult::force(force_value.clone()))
                 } else {
                     None
