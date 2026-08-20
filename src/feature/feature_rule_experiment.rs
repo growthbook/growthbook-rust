@@ -7,8 +7,9 @@ use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
 use crate::extensions::{FindGrowthBookAttribute, JsonHelper};
+use crate::feature::resolve_hash_attribute;
 use crate::hash::{HashCode, HashCodeVersion};
-use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute};
+use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute, GrowthBookAttributeValue};
 use crate::namespace::use_case::Namespace;
 use crate::range::model::Range;
 use crate::sticky_bucket::StickyBucketService;
@@ -22,23 +23,13 @@ impl GrowthBookFeatureRuleExperiment {
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
         saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
-        let feature_attribute = if let Some(hash_attribute) = &self.hash_attribute {
-            if user_attributes.find_value(hash_attribute).is_some() {
-                hash_attribute.clone()
-            } else if let Some(fallback_attribute) = &self.fallback_attribute {
-                if user_attributes.find_value(fallback_attribute).is_some() {
-                    fallback_attribute.clone()
-                } else {
-                    hash_attribute.clone()
-                }
-            } else {
-                hash_attribute.clone()
-            }
-        } else {
-            self.get_fallback_attribute()
-        };
+        // JS `getHashAttribute`: the fallback attribute only applies when a
+        // sticky bucket service is configured and the rule doesn't disable
+        // sticky bucketing; a missing hash value skips the rule.
+        let fallback_allowed = sticky_bucket_service.is_some() && !self.disable_sticky_bucketing.unwrap_or(false);
+        let (feature_attribute, user_value) = resolve_hash_attribute(&self.hash_attribute, &self.fallback_attribute, fallback_allowed, user_attributes)?;
 
-        self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, sticky_bucket_service, saved_groups)
+        self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, user_value, sticky_bucket_service, saved_groups)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -48,14 +39,13 @@ impl GrowthBookFeatureRuleExperiment {
         user_attributes: &Vec<GrowthBookAttribute>,
         forced_variations: &Option<HashMap<String, i64>>,
         feature_attribute: &str,
+        user_value: GrowthBookAttributeValue,
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
         saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
-        let user_value = user_attributes.find_value(feature_attribute)?;
-
         // Step 4 (JS runExperiment): a forced variation fires before any
         // targeting or sticky-bucket logic.
-        if let Some(forced_variation) = self.forced_variation(feature_name, user_attributes, forced_variations) {
+        if let Some(forced_variation) = self.forced_variation(feature_name, feature_attribute, &user_value, forced_variations) {
             return Some(forced_variation);
         }
 
@@ -67,8 +57,13 @@ impl GrowthBookFeatureRuleExperiment {
                 let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
                 let sticky_key = format!("{}__{}", meta_key, bucket_version);
 
-                let fallback_attribute = self.get_fallback_attribute();
-                let fallback_value = if feature_attribute != fallback_attribute {
+                // JS getStickyBucketAssignments resolves the fallback doc key
+                // via getHashAttribute(ctx, expFallbackAttribute), so an
+                // omitted fallbackAttribute still reads the "id" doc. Lookup
+                // only — hashing never falls back to "id" (see
+                // resolve_hash_attribute).
+                let fallback_attribute = self.fallback_attribute.clone().unwrap_or(String::from("id"));
+                let fallback_value = if fallback_attribute != feature_attribute {
                     user_attributes.find_value(&fallback_attribute)
                 } else {
                     None
@@ -213,40 +208,38 @@ impl GrowthBookFeatureRuleExperiment {
     fn forced_variation(
         &self,
         feature_name: &str,
-        user_attributes: &Vec<GrowthBookAttribute>,
+        feature_attribute: &str,
+        user_value: &GrowthBookAttributeValue,
         forced_variations: &Option<HashMap<String, i64>>,
     ) -> Option<FeatureResult> {
         if let Some(forced_variations) = forced_variations {
             if let Some(found_forced_variation) = forced_variations.get(feature_name) {
-                let hash_attribute = self.hash_attribute.clone().unwrap_or(self.get_fallback_attribute());
-                if let Some(user_value) = user_attributes.find_value(&hash_attribute) {
-                    // #18: a forced variation index from an untrusted response may be
-                    // negative or out of range. JS clamps an invalid index to
-                    // inExperiment=false; skip the forced variation here rather than
-                    // indexing out of bounds.
-                    let forced_variation_index = match usize::try_from(*found_forced_variation) {
-                        Ok(index) if index < self.variations.len() => index,
-                        _ => return None,
-                    };
-                    let value = self.variations[forced_variation_index].clone();
-                    let (meta_value, pass_through) = self.get_meta_value(forced_variation_index);
-                    if !pass_through {
-                        return Some(FeatureResult::experiment(
+                // #18: a forced variation index from an untrusted response may be
+                // negative or out of range. JS clamps an invalid index to
+                // inExperiment=false; skip the forced variation here rather than
+                // indexing out of bounds.
+                let forced_variation_index = match usize::try_from(*found_forced_variation) {
+                    Ok(index) if index < self.variations.len() => index,
+                    _ => return None,
+                };
+                let value = self.variations[forced_variation_index].clone();
+                let (meta_value, pass_through) = self.get_meta_value(forced_variation_index);
+                if !pass_through {
+                    return Some(FeatureResult::experiment(
+                        value.clone(),
+                        self.model_experiment(),
+                        create_experiment_result(
+                            feature_name,
                             value.clone(),
-                            self.model_experiment(),
-                            create_experiment_result(
-                                feature_name,
-                                value.clone(),
-                                *found_forced_variation,
-                                true,
-                                self.hash_attribute.clone(),
-                                Some(user_value.to_value()),
-                                None,
-                                meta_value,
-                                false,
-                            ),
-                        ));
-                    }
+                            *found_forced_variation,
+                            true,
+                            Some(feature_attribute.to_string()),
+                            Some(user_value.to_value()),
+                            None,
+                            meta_value,
+                            false,
+                        ),
+                    ));
                 }
             }
         }
@@ -277,10 +270,6 @@ impl GrowthBookFeatureRuleExperiment {
                 }
             },
         }
-    }
-
-    fn get_fallback_attribute(&self) -> String {
-        self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
 }
 

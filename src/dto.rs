@@ -143,6 +143,7 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     hash_attribute,
                     fallback_attribute,
                     hash_version,
+                    disable_sticky_bucketing,
                 })
             } else {
                 GrowthBookFeatureRuleKind::Force(GrowthBookFeatureRuleForce {
@@ -155,6 +156,7 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     condition: value_to_condition_map(condition),
                     hash_attribute,
                     fallback_attribute,
+                    disable_sticky_bucketing,
                 })
             }
         } else {
@@ -181,6 +183,7 @@ pub struct GrowthBookFeatureRuleForce {
     condition: Option<HashMap<String, Value>>,
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,
+    pub disable_sticky_bucketing: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -204,6 +207,7 @@ pub struct GrowthBookFeatureRuleRollout {
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,
     pub hash_version: Option<i64>,
+    pub disable_sticky_bucketing: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -243,6 +247,7 @@ impl GrowthBookFeatureRuleRollout {
         Range::get_range(self.range.clone())
     }
 
+    #[deprecated(note = "no longer used by evaluation: fallbackAttribute now follows JS getHashAttribute semantics (sticky-gated, no \"id\" default)")]
     pub fn get_fallback_attribute(&self) -> String {
         self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
@@ -257,6 +262,7 @@ impl GrowthBookFeatureRuleForce {
         Range::get_range(self.range.clone())
     }
 
+    #[deprecated(note = "no longer used by evaluation: fallbackAttribute now follows JS getHashAttribute semantics (sticky-gated, no \"id\" default)")]
     pub fn get_fallback_attribute(&self) -> String {
         self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
