@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::extensions::JsonHelper;
+use crate::extensions::{non_empty, JsonHelper};
 use crate::model_public::{Experiment, GrowthBookAttribute, GrowthBookAttributeValue};
 use crate::range::model::Range;
 
@@ -273,11 +273,13 @@ impl GrowthBookFeatureRuleExperiment {
         option_map_to_attributes(self.condition.clone())
     }
 
+    /// JS: `experiment.seed || experiment.key`, where a feature-rule
+    /// experiment's key is `rule.key || featureId` — empty strings are falsy.
     pub fn seed(
         &self,
         feature_name: &str,
     ) -> String {
-        self.seed.clone().unwrap_or(self.key.clone().unwrap_or(feature_name.to_string()))
+        non_empty(&self.seed).or(non_empty(&self.key)).cloned().unwrap_or_else(|| feature_name.to_string())
     }
 
     pub fn ranges(&self) -> Vec<Range> {

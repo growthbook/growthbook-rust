@@ -21,7 +21,11 @@ impl Filter {
         user_attributes: &Vec<GrowthBookAttribute>,
     ) -> bool {
         filters.force_array(vec![]).iter().any(|filter| {
-            let attribute = filter.get_string("attribute", default_attribute);
+            // JS: `filter.attribute || "id"` — an empty string is falsy too.
+            let attribute = match filter.get_string("attribute", default_attribute) {
+                attribute if attribute.is_empty() => default_attribute.to_string(),
+                attribute => attribute,
+            };
             let Some(user_value) = user_attributes.find_value(&attribute) else {
                 return true;
             };

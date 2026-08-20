@@ -4,7 +4,7 @@ mod feature_rule_parent;
 pub mod feature_rule_rollout;
 pub mod use_case;
 
-use crate::extensions::FindGrowthBookAttribute;
+use crate::extensions::{non_empty, FindGrowthBookAttribute};
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
 /// Resolve the attribute to hash on, mirroring JS `getHashAttribute`
@@ -19,13 +19,13 @@ pub(crate) fn resolve_hash_attribute(
     fallback_allowed: bool,
     user_attributes: &Vec<GrowthBookAttribute>,
 ) -> Option<(String, GrowthBookAttributeValue)> {
-    let attribute = hash_attribute.clone().unwrap_or(String::from("id"));
+    let attribute = non_empty(hash_attribute).cloned().unwrap_or(String::from("id"));
     if let Some(value) = user_attributes.find_value(&attribute) {
         return Some((attribute, value));
     }
 
     if fallback_allowed {
-        if let Some(fallback) = fallback_attribute {
+        if let Some(fallback) = non_empty(fallback_attribute) {
             if let Some(value) = user_attributes.find_value(fallback) {
                 return Some((fallback.clone(), value));
             }

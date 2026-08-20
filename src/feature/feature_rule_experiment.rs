@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
-use crate::extensions::{FindGrowthBookAttribute, JsonHelper};
+use crate::extensions::{non_empty, FindGrowthBookAttribute, JsonHelper};
 use crate::feature::resolve_hash_attribute;
 use crate::hash::{HashCode, HashCodeVersion};
 use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute, GrowthBookAttributeValue};
@@ -54,7 +54,7 @@ impl GrowthBookFeatureRuleExperiment {
             if !self.disable_sticky_bucketing.unwrap_or(false) {
                 let bucket_version = self.bucket_version.unwrap_or(0);
                 let min_bucket_version = self.min_bucket_version.unwrap_or(0);
-                let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
+                let meta_key = non_empty(&self.key).cloned().unwrap_or_else(|| feature_name.to_string());
                 let sticky_key = format!("{}__{}", meta_key, bucket_version);
 
                 // JS getStickyBucketAssignments resolves the fallback doc key
@@ -62,7 +62,7 @@ impl GrowthBookFeatureRuleExperiment {
                 // omitted fallbackAttribute still reads the "id" doc. Lookup
                 // only — hashing never falls back to "id" (see
                 // resolve_hash_attribute).
-                let fallback_attribute = self.fallback_attribute.clone().unwrap_or(String::from("id"));
+                let fallback_attribute = non_empty(&self.fallback_attribute).cloned().unwrap_or(String::from("id"));
                 let fallback_value = if fallback_attribute != feature_attribute {
                     user_attributes.find_value(&fallback_attribute)
                 } else {
@@ -175,7 +175,7 @@ impl GrowthBookFeatureRuleExperiment {
             if !self.disable_sticky_bucketing.unwrap_or(false) && !pass_through {
                 if let Some(service) = sticky_bucket_service {
                     let bucket_version = self.bucket_version.unwrap_or(0);
-                    let meta_key = self.key.clone().unwrap_or_else(|| feature_name.to_string());
+                    let meta_key = non_empty(&self.key).cloned().unwrap_or_else(|| feature_name.to_string());
                     let sticky_key = format!("{}__{}", meta_key, bucket_version);
                     let mut new_assignment = HashMap::new();
                     new_assignment.insert(sticky_key, index.to_string());
