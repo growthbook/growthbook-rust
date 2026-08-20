@@ -5412,7 +5412,19 @@
         "source": "defaultValue",
         "ruleId": ""
       }
-    ]
+    ],
+    ["force rules - coverage rollout uses seed (included)", {"attributes": {"id": "2"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "seed": "s1"}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["force rules - coverage rollout uses seed (excluded)", {"attributes": {"id": "5"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "seed": "s1"}]}}}, "feature", {"value": 0, "on": false, "off": true, "source": "defaultValue", "ruleId": ""}],
+    ["force rules - coverage rollout respects filters (filtered out)", {"attributes": {"id": "5"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "filters": [{"seed": "s2", "ranges": [[0, 0.5]]}]}]}}}, "feature", {"value": 0, "on": false, "off": true, "source": "defaultValue", "ruleId": ""}],
+    ["force rules - coverage rollout respects filters (in filter range)", {"attributes": {"id": "3"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "filters": [{"seed": "s2", "ranges": [[0, 0.5]]}]}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["force rules - coverage boundary is inclusive (n == coverage)", {"attributes": {"id": "3152"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["force rules - skip if hashAttribute missing and no sticky bucketing (fallbackAttribute set)", {"attributes": {"id": "1", "deviceId": "d123"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 1, "hashAttribute": "email", "fallbackAttribute": "deviceId"}]}}}, "feature", {"value": 0, "on": false, "off": true, "source": "defaultValue", "ruleId": ""}],
+    ["force rules - skip if hashAttribute missing (no fallback to id)", {"attributes": {"id": "1"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 1, "hashAttribute": "email"}]}}}, "feature", {"value": 0, "on": false, "off": true, "source": "defaultValue", "ruleId": ""}],
+    ["force rules - hashAttribute present is used for coverage", {"attributes": {"id": "1", "email": "a@b.c"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 1, "hashAttribute": "email"}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["force rules - empty seed falls back to feature key (included)", {"attributes": {"id": "3"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "seed": ""}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["force rules - empty seed falls back to feature key (excluded)", {"attributes": {"id": "2"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 0.5, "seed": ""}]}}}, "feature", {"value": 0, "on": false, "off": true, "source": "defaultValue", "ruleId": ""}],
+    ["force rules - empty hashAttribute falls back to id", {"attributes": {"id": "1"}, "features": {"feature": {"defaultValue": 0, "rules": [{"force": 1, "coverage": 1, "hashAttribute": ""}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "force", "ruleId": ""}],
+    ["experiment rules - empty key falls back to feature key for hashing", {"attributes": {"id": "1"}, "features": {"feature": {"defaultValue": 9, "rules": [{"variations": [0, 1], "key": ""}]}}}, "feature", {"value": 1, "on": true, "off": false, "source": "experiment", "ruleId": ""}]
   ],
   "run": [
     [
@@ -7330,7 +7342,8 @@
           "assignments": { "feature-exp__0": "1" }
         }
       }
-    ]
+    ],
+    ["uses stored id assignment when fallbackAttribute is omitted", {"attributes": {"id": "1", "email": "a@b.c"}, "features": {"exp2": {"defaultValue": "control", "rules": [{"key": "exp2-key", "hashAttribute": "email", "hashVersion": 2, "variations": ["control", "red", "blue"], "meta": [{"key": "0"}, {"key": "1"}, {"key": "2"}], "coverage": 1}]}, "other": {"defaultValue": 0, "rules": [{"key": "other-key", "variations": [0, 1]}]}}}, [{"attributeName": "id", "attributeValue": "1", "assignments": {"exp2-key__0": "2"}}], "exp2", {"bucket": 0.4303, "featureId": "exp2", "hashAttribute": "email", "hashUsed": true, "hashValue": "a@b.c", "inExperiment": true, "key": "2", "stickyBucketUsed": true, "value": "blue", "variationId": 2}, {"id||1": {"assignments": {"exp2-key__0": "2"}, "attributeName": "id", "attributeValue": "1"}, "email||a@b.c": {"assignments": {"exp2-key__0": "2"}, "attributeName": "email", "attributeValue": "a@b.c"}}]
   ],
   "urlRedirect": [
     [
