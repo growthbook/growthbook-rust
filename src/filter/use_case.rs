@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::extensions::{FindGrowthBookAttribute, JsonHelper};
+use crate::extensions::{truthy, FindGrowthBookAttribute, JsonHelper};
 use crate::hash::{HashCode, HashCodeVersion};
 use crate::model_public::GrowthBookAttribute;
 use crate::range::model::Range;
@@ -26,7 +26,9 @@ impl Filter {
                 attribute if attribute.is_empty() => default_attribute.to_string(),
                 attribute => attribute,
             };
-            let Some(user_value) = user_attributes.find_value(&attribute) else {
+            // A falsy value counts as missing (JS getHashAttribute), so the
+            // user is excluded by this filter.
+            let Some(user_value) = user_attributes.find_value(&attribute).filter(truthy) else {
                 return true;
             };
 
