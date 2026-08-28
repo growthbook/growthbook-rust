@@ -62,12 +62,12 @@ impl GrowthBookFeature {
 
                 match &rule.kind {
                     GrowthBookFeatureRuleKind::Force(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, saved_groups) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, sticky_bucket_service.is_some(), saved_groups) {
                             return feature;
                         }
                     },
                     GrowthBookFeatureRuleKind::Rollout(it) => {
-                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, saved_groups) {
+                        if let Some(feature) = it.get_match_value(feature_name, user_attributes, sticky_bucket_service.is_some(), saved_groups) {
                             return feature;
                         }
                     },

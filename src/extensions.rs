@@ -2,6 +2,26 @@ use serde_json::Value;
 
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
+/// JS-style `||` for optional strings: an empty string counts as absent, so
+/// `rule.seed || featureKey` / `hashAttribute || "id"` defaults apply to `""`.
+pub fn non_empty(option: &Option<String>) -> Option<&String> {
+    option.as_ref().filter(|value| !value.is_empty())
+}
+
+/// JS truthiness for attribute values: `getHashAttribute` checks
+/// `attributes[attr]` with `if (...)`, so `null`, `false`, `0`, `NaN` and `""`
+/// count as missing, while arrays and objects (even empty ones) are truthy.
+pub fn truthy(value: &GrowthBookAttributeValue) -> bool {
+    match value {
+        GrowthBookAttributeValue::Empty => false,
+        GrowthBookAttributeValue::Bool(it) => *it,
+        GrowthBookAttributeValue::Int(it) => *it != 0,
+        GrowthBookAttributeValue::Float(it) => *it != 0.0 && !it.is_nan(),
+        GrowthBookAttributeValue::String(it) => !it.is_empty(),
+        GrowthBookAttributeValue::Array(_) | GrowthBookAttributeValue::Object(_) => true,
+    }
+}
+
 pub trait FindGrowthBookAttribute {
     fn find_value(
         &self,

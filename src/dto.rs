@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::extensions::JsonHelper;
+use crate::extensions::{non_empty, JsonHelper};
 use crate::model_public::{Experiment, GrowthBookAttribute, GrowthBookAttributeValue};
 use crate::range::model::Range;
 
@@ -37,13 +37,13 @@ pub struct GrowthBookFeatureRule {
 
 impl GrowthBookFeatureRule {
     /// The rule's `filters`, regardless of kind. JS evaluates `rule.filters`
-    /// once in the rule loop (core.ts) for every rule type. `Rollout` rules
-    /// don't currently carry filters (see the rollout-filters follow-up).
+    /// once in the rule loop (core.ts) for every rule type.
     pub fn filters(&self) -> Option<&Value> {
         match &self.kind {
             GrowthBookFeatureRuleKind::Force(it) => it.filters.as_ref(),
             GrowthBookFeatureRuleKind::Experiment(it) => it.filters.as_ref(),
-            GrowthBookFeatureRuleKind::Rollout(_) | GrowthBookFeatureRuleKind::Empty => None,
+            GrowthBookFeatureRuleKind::Rollout(it) => it.filters.as_ref(),
+            GrowthBookFeatureRuleKind::Empty => None,
         }
     }
 }
@@ -137,10 +137,13 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     force,
                     coverage,
                     range,
+                    seed,
+                    filters,
                     condition: value_to_condition_map(condition),
                     hash_attribute,
                     fallback_attribute,
                     hash_version,
+                    disable_sticky_bucketing,
                 })
             } else {
                 GrowthBookFeatureRuleKind::Force(GrowthBookFeatureRuleForce {
@@ -153,6 +156,7 @@ impl From<GrowthBookFeatureRuleDto> for GrowthBookFeatureRule {
                     condition: value_to_condition_map(condition),
                     hash_attribute,
                     fallback_attribute,
+                    disable_sticky_bucketing,
                 })
             }
         } else {
@@ -179,6 +183,7 @@ pub struct GrowthBookFeatureRuleForce {
     condition: Option<HashMap<String, Value>>,
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,
+    pub disable_sticky_bucketing: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -196,10 +201,13 @@ pub struct GrowthBookFeatureRuleRollout {
     pub force: Value,
     pub coverage: f32,
     range: Option<Vec<f32>>,
+    pub seed: Option<String>,
+    pub filters: Option<Value>,
     condition: Option<HashMap<String, Value>>,
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,
     pub hash_version: Option<i64>,
+    pub disable_sticky_bucketing: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -239,6 +247,7 @@ impl GrowthBookFeatureRuleRollout {
         Range::get_range(self.range.clone())
     }
 
+    #[deprecated(note = "no longer used by evaluation: fallbackAttribute now follows JS getHashAttribute semantics (sticky-gated, no \"id\" default)")]
     pub fn get_fallback_attribute(&self) -> String {
         self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
@@ -253,6 +262,7 @@ impl GrowthBookFeatureRuleForce {
         Range::get_range(self.range.clone())
     }
 
+    #[deprecated(note = "no longer used by evaluation: fallbackAttribute now follows JS getHashAttribute semantics (sticky-gated, no \"id\" default)")]
     pub fn get_fallback_attribute(&self) -> String {
         self.fallback_attribute.clone().unwrap_or(String::from("id"))
     }
@@ -263,11 +273,13 @@ impl GrowthBookFeatureRuleExperiment {
         option_map_to_attributes(self.condition.clone())
     }
 
+    /// JS: `experiment.seed || experiment.key`, where a feature-rule
+    /// experiment's key is `rule.key || featureId` — empty strings are falsy.
     pub fn seed(
         &self,
         feature_name: &str,
     ) -> String {
-        self.seed.clone().unwrap_or(self.key.clone().unwrap_or(feature_name.to_string()))
+        non_empty(&self.seed).or(non_empty(&self.key)).cloned().unwrap_or_else(|| feature_name.to_string())
     }
 
     pub fn ranges(&self) -> Vec<Range> {
