@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2](https://github.com/growthbook/growthbook-rust/compare/0.2.1...0.2.2) (2026-08-28)
+
+
+### Bug Fixes
+
+* carry seed and filters through coverage rollout rules ([489ba4c](https://github.com/growthbook/growthbook-rust/commit/489ba4c8fa5a7db8d64f8b2db7fabf76da0e400c))
+* gate fallbackAttribute hashing on sticky bucketing, keep id for sticky doc lookup ([825b781](https://github.com/growthbook/growthbook-rust/commit/825b781d746e89c65b366e59ebf85abec9b02d46))
+* make coverage rollout boundary inclusive (n &lt;= coverage) to match JS ([698c2e6](https://github.com/growthbook/growthbook-rust/commit/698c2e6e2d1d76a3479cb18215c0087aab3b0d65))
+* treat empty-string seed, key, and attribute names as absent to match JS ([2d1ecf2](https://github.com/growthbook/growthbook-rust/commit/2d1ecf2e51e94d8289a3336a1d507004172faba9))
+* treat falsy hash values (0, false, empty, null) as missing like JS ([e5ced1a](https://github.com/growthbook/growthbook-rust/commit/e5ced1abfaf96d5b1039f68c6f2e03d6b3115eb6))
+
 ## [0.2.1]
 
 Bug-fix release — **no breaking changes**. Further aligns feature-rule
@@ -128,4 +139,4 @@ other SDKs (the cross-SDK source of truth).
 ### 🎉 Initial Release
 - Official adoption of the GrowthBook Rust SDK.
 - Basic feature flag evaluation.
-- Remote feature fetching and caching. 
+- Remote feature fetching and caching.
