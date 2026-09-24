@@ -69,11 +69,37 @@ mod test {
     use crate::model_public::FeatureResult;
     use crate::model_public::GrowthBookAttribute;
 
+    /// These feature cases require contextual bandits, which Rust does not support.
+    /// Keep the fixtures in the corpus and run them with the ignored bandit suite.
+    const CONTEXTUAL_BANDIT_CASES: [&str; 4] = [
+        "CB rule with empty contexts (explore) buckets on marginal weights with fallback leaf -1",
+        "CB rule with no contexts key falls back to marginal weights (fallback leaf -1)",
+        "CB rule with empty contexts uses marginal weights (fallback leaf -1)",
+        "CB rule with empty contexts is overridden by forced variation like a normal experiment",
+    ];
+
     #[tokio::test]
     async fn evaluate_get_bucket_range() -> Result<(), Box<dyn std::error::Error>> {
-        let cases = Cases::new();
+        let mut cases = Cases::new();
+        for name in CONTEXTUAL_BANDIT_CASES {
+            assert!(cases.feature.iter().any(|case| case[0].as_str() == Some(name)), "Stale contextual-bandit exclusion: {name}");
+        }
+        cases.feature.retain(|case| !CONTEXTUAL_BANDIT_CASES.contains(&case[0].as_str().expect("case name")));
+        evaluate_feature_cases(cases.feature);
+        Ok(())
+    }
 
-        for value in cases.feature {
+    #[tokio::test]
+    #[ignore = "Contextual bandits are not supported by the Rust SDK"]
+    async fn evaluate_contextual_bandits() {
+        let cases = Cases::new();
+        let mut bandit_cases = cases.contextual_bandit;
+        bandit_cases.extend(cases.feature.into_iter().filter(|case| CONTEXTUAL_BANDIT_CASES.contains(&case[0].as_str().expect("case name"))));
+        evaluate_feature_cases(bandit_cases);
+    }
+
+    fn evaluate_feature_cases(cases: Vec<Value>) {
+        for value in cases {
             let feature = EvalFeature::new(value);
 
             let saved_groups = saved_groups_from_value(feature.feature.get("savedGroups"));
@@ -93,8 +119,6 @@ mod test {
             let result = gb.check(feature.feature_name.as_str(), &user_attributes);
             validate_result(feature, result);
         }
-
-        Ok(())
     }
 
     fn validate_result(
@@ -122,6 +146,7 @@ mod test {
     #[serde(rename_all = "camelCase")]
     struct Cases {
         feature: Vec<Value>,
+        contextual_bandit: Vec<Value>,
     }
 
     #[derive(Deserialize, Clone)]

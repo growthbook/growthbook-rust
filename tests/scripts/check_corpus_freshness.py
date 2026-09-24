@@ -51,11 +51,8 @@ SKIPLIST = REPO_ROOT / "tests" / "scripts" / "corpus_skiplist.json"
 
 DEFAULT_JS_URL = "https://raw.githubusercontent.com/growthbook/growthbook/main/packages/sdk-js/test/cases.json"
 
-# Suite paths to diff; dotted paths address nested capability suites. Other
-# keys in cases.json (specVersion, decrypt
-# binary blobs, urlRedirect which Rust doesn't yet wire) are skipped either
-# because they're scalar metadata or because the divergence is tracked
-# separately.
+# Compare all base suites, even when a suite has no Rust runner yet.
+# Dotted paths address nested capability suites; specVersion is metadata.
 KEYS_TO_DIFF = (
     "evalCondition",
     "feature",
@@ -67,6 +64,9 @@ KEYS_TO_DIFF = (
     "inNamespace",
     "getEqualWeights",
     "stickyBucket",
+    "decrypt",
+    "urlRedirect",
+    "contextualBandit",
     "savedGroupReferencesV2.evalCondition",
     "savedGroupReferencesV2.feature",
     "savedGroupReferencesV2.run",
@@ -216,7 +216,7 @@ def _format_report(
     lines.append(f"  JS specVersion: {js_spec}")
     lines.append(f"  Rust specVersion: {local_spec}")
     if js_spec != local_spec:
-        lines.append("  ⚠ specVersion mismatch — bump Rust's value when you catch up to JS's.")
+        lines.append("  ⚠ specVersion labels differ; case-level comparison follows.")
     lines.append("")
 
     n_missing = sum(len(v) for v in actionable_missing.values())

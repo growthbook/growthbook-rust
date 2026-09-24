@@ -121,7 +121,20 @@ Add a regression test with a bug fix that fails before the fix and passes after.
 ### Conformance corpus
 
 `tests/all_cases.json` contains shared SDK conformance cases used by the Rust
-tests. CI compares it against the JavaScript SDK's current `main` branch using:
+tests, plus Rust-specific regression cases. Keep every base suite when updating
+the file, even if Rust does not yet have a runner for a suite. Preserve local
+additions and change `specVersion` only after merging the complete base corpus.
+The version label alone does not indicate SDK support for every capability.
+
+Contextual bandits are unsupported. Their 35 dedicated cases and four related
+feature cases remain in the corpus but run only in the ignored
+`growthbook::test::evaluate_contextual_bandits` test. The feature runner excludes
+those four cases by exact name; ordinary experiment and unknown-field tolerance
+cases still run. These execution exclusions do not exempt cases from freshness
+checks. When implementing bandits, remove the ignore and exclusions and extend
+the runner to check bandit metadata as well as feature results.
+
+CI compares the corpus against the JavaScript SDK's current `main` branch using:
 
 ```sh
 python3 tests/scripts/check_corpus_freshness.py

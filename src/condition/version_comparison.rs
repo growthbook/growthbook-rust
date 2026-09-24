@@ -1,5 +1,4 @@
 use crate::condition::eval_context::ConditionEvalContext;
-use regex::Regex;
 
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
@@ -62,36 +61,31 @@ fn evaluate(
     ctx: &ConditionEvalContext,
     condition: fn(&str, &str) -> bool,
 ) -> bool {
-    if let Some(GrowthBookAttributeValue::String(user_version)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-        let feature_version = feature_attribute.value.to_string();
-        condition(&normalize(&feature_version), &normalize(&user_version))
-    } else {
-        true
-    }
+    let user_version = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+    condition(&normalize(&feature_attribute.value), &normalize(&user_version))
 }
 
-fn normalize(version: &str) -> String {
-    if let Ok(regex1) = Regex::new("(^v|\\+.*$)") {
-        if let Ok(regex2) = Regex::new("[-.]") {
-            if let Ok(regex3) = Regex::new("^\\d+") {
-                let string = regex1.replace_all(version, "").to_string();
-                let mut split = regex2.split(&string).filter(|item| !item.is_empty()).collect::<Vec<&str>>();
-                if split.len() == 3 {
-                    split.push("~");
-                }
-                split
-                    .iter()
-                    .map(|part| if regex3.is_match(part) { format!("{:0>5}", part) } else { part.to_string() })
-                    .filter(|part| !part.is_empty())
-                    .reduce(|a, b| format!("{a}-{b}"))
-                    .unwrap_or(version.to_string())
-            } else {
-                version.to_string()
-            }
-        } else {
-            version.to_string()
-        }
-    } else {
-        version.to_string()
+/// Match the JavaScript SDK's paddedVersionString, including empty segments.
+fn normalize(value: &GrowthBookAttributeValue) -> String {
+    let version = match value {
+        GrowthBookAttributeValue::String(s) if !s.is_empty() => s.clone(),
+        GrowthBookAttributeValue::Int(_) | GrowthBookAttributeValue::Float(_) => value.to_string(),
+        _ => String::from("0"),
+    };
+    let version = version.strip_prefix('v').unwrap_or(&version).split('+').next().unwrap_or("");
+    let mut parts = version.split(['-', '.']).collect::<Vec<_>>();
+    if parts.len() == 3 {
+        parts.push("~");
     }
+    parts
+        .iter()
+        .map(|part| {
+            if !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) {
+                format!("{part:>5}")
+            } else {
+                part.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("-")
 }
