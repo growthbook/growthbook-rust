@@ -1,13 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
 use crate::extensions::FindGrowthBookAttribute;
-use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
+use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGroup};
 
-/// Saved groups available to condition evaluation: a group id mapped to its
-/// list of member values. Used by the `$inGroup` / `$notInGroup` operators.
-pub type SavedGroups = HashMap<String, Vec<GrowthBookAttributeValue>>;
+/// Legacy lists and typed saved groups, indexed by group id.
+pub type SavedGroups = HashMap<String, SavedGroup>;
 
 /// Everything condition evaluation needs beyond the condition itself: the
 /// attributes being evaluated plus the saved groups. Bundled into one context
@@ -16,6 +15,7 @@ pub type SavedGroups = HashMap<String, Vec<GrowthBookAttributeValue>>;
 pub struct ConditionEvalContext<'a> {
     attributes: &'a [GrowthBookAttribute],
     saved_groups: &'a SavedGroups,
+    visited: HashSet<String>,
 }
 
 impl<'a> ConditionEvalContext<'a> {
@@ -23,15 +23,60 @@ impl<'a> ConditionEvalContext<'a> {
         attributes: &'a [GrowthBookAttribute],
         saved_groups: &'a SavedGroups,
     ) -> Self {
-        Self { attributes, saved_groups }
+        Self {
+            attributes,
+            saved_groups,
+            visited: HashSet::new(),
+        }
     }
 
-    /// Members of a saved group by id, if the group is known.
+    /// The complete entry, preserving malformed entries separately from absent ids.
     pub fn saved_group(
         &self,
         group_id: &str,
+    ) -> Option<&SavedGroup> {
+        self.saved_groups.get(group_id)
+    }
+
+    /// Legacy operators treat absent ids as empty lists, but fail closed for
+    /// present entries that do not contain list values.
+    pub fn saved_group_values(
+        &self,
+        group_id: &str,
     ) -> Option<&[GrowthBookAttributeValue]> {
-        self.saved_groups.get(group_id).map(|members| members.as_slice())
+        match self.saved_group(group_id) {
+            None => Some(&[]),
+            Some(SavedGroup::LegacyList(values)) | Some(SavedGroup::List { values: Some(values), .. }) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Enter one branch of group resolution without marking sibling branches.
+    pub fn enter_group(
+        &self,
+        group_id: &str,
+    ) -> Option<Self> {
+        let mut visited = self.visited.clone();
+        if !visited.insert(group_id.to_owned()) {
+            return None;
+        }
+        Some(Self {
+            attributes: self.attributes,
+            saved_groups: self.saved_groups,
+            visited,
+        })
+    }
+
+    /// Evaluate a nested value while retaining the current group-resolution path.
+    pub fn with_attributes<'b>(
+        &'b self,
+        attributes: &'b [GrowthBookAttribute],
+    ) -> ConditionEvalContext<'b> {
+        ConditionEvalContext {
+            attributes,
+            saved_groups: self.saved_groups,
+            visited: self.visited.clone(),
+        }
     }
 }
 
@@ -46,14 +91,13 @@ impl FindGrowthBookAttribute for ConditionEvalContext<'_> {
     }
 }
 
-/// Build a `SavedGroups` map from the raw `{ id: [values] }` payload shape.
+/// Decode both payload shapes, retaining invalid entries so `$notInGroup`
+/// cannot mistake them for absent ids and pass every user.
 pub fn saved_groups_from_value(value: Option<&Value>) -> SavedGroups {
     let mut groups = SavedGroups::new();
     if let Some(Value::Object(map)) = value {
-        for (id, members) in map {
-            if let Value::Array(items) = members {
-                groups.insert(id.clone(), items.iter().map(|item| GrowthBookAttributeValue::from(item.clone())).collect());
-            }
+        for (id, entry) in map {
+            groups.insert(id.clone(), SavedGroup::from(entry));
         }
     }
     groups

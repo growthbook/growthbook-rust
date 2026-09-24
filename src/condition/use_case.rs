@@ -7,7 +7,7 @@ use crate::condition::size_comparison::SizeComparison;
 use crate::condition::type_comparison::TypeComparison;
 use crate::condition::version_comparison::VersionComparison;
 use crate::extensions::FindGrowthBookAttribute;
-use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
+use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGroup};
 
 pub trait ConditionsMatchesAttributes {
     fn matches(
@@ -32,6 +32,9 @@ fn verify(
     array_size: bool,
 ) -> bool {
     match feature_attribute.key.as_str() {
+        "$savedGroup" if parent_attribute.is_none() => saved_group(&feature_attribute.value, ctx),
+        "$savedGroup" | "$savedGroups" => false,
+        "$and" | "$or" | "$nor" if parent_attribute.is_some() => false,
         "$not" => OperatorCondition::not(parent_attribute, feature_attribute, ctx, verify),
         "$ne" => OperatorCondition::ne(parent_attribute, feature_attribute, ctx, verify),
         "$and" => OperatorCondition::and(parent_attribute, feature_attribute, ctx, verify),
@@ -47,24 +50,89 @@ fn verify(
         "$exists" => OperatorCondition::exists(parent_attribute, feature_attribute, ctx, verify),
         "$regex" => RegexComparison::matches(parent_attribute, feature_attribute, ctx),
         "$type" => TypeComparison::matches(parent_attribute, feature_attribute, ctx),
-        "$size" => SizeComparison::matches(parent_attribute, feature_attribute, ctx, verify),
-        "$all" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, false, verify),
+        "$size" => SizeComparison::matches(parent_attribute, feature_attribute, ctx),
+        "$all" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, false),
         "$vgt" => VersionComparison::vgt(parent_attribute, feature_attribute, ctx),
         "$vgte" => VersionComparison::vgte(parent_attribute, feature_attribute, ctx),
         "$vlt" => VersionComparison::vlt(parent_attribute, feature_attribute, ctx),
         "$vlte" => VersionComparison::vlte(parent_attribute, feature_attribute, ctx),
         "$veq" => VersionComparison::veq(parent_attribute, feature_attribute, ctx),
         "$vne" => VersionComparison::vne(parent_attribute, feature_attribute, ctx),
-        "$elemMatch" => ElemMatchComparison::matches(parent_attribute, feature_attribute, ctx, array_size, verify),
+        "$elemMatch" => ElemMatchComparison::matches(parent_attribute, feature_attribute, ctx),
         "$ini" => OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, true, verify),
         "$nini" => OperatorCondition::nin(parent_attribute, feature_attribute, ctx, true, verify),
-        "$alli" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, true, verify),
+        "$alli" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, true),
         "$regexi" => RegexComparison::matches_ignore_case(parent_attribute, feature_attribute, ctx),
         "$notRegex" => RegexComparison::not_matches(parent_attribute, feature_attribute, ctx),
         "$notRegexi" => RegexComparison::not_matches_ignore_case(parent_attribute, feature_attribute, ctx),
         "$inGroup" => OperatorCondition::in_group(parent_attribute, feature_attribute, ctx),
         "$notInGroup" => OperatorCondition::not_in_group(parent_attribute, feature_attribute, ctx),
+        key if key.starts_with('$') && (parent_attribute.is_some() || ctx.find_value(key).is_none()) => false,
         _ => non_operator_or_condition(parent_attribute, feature_attribute, ctx),
+    }
+}
+
+/// Whether an object represents attribute operators rather than a condition
+/// evaluated against the fields of an object.
+pub(super) fn is_operator_object(fields: &[GrowthBookAttribute]) -> bool {
+    !fields.is_empty() && fields.iter().all(|field| field.key.starts_with('$'))
+}
+
+/// Evaluate an array element or size without resetting group cycle detection.
+pub(super) fn matches_value(
+    actual: &GrowthBookAttributeValue,
+    expected: &GrowthBookAttributeValue,
+    ctx: &ConditionEvalContext,
+    case_insensitive: bool,
+) -> bool {
+    if let GrowthBookAttributeValue::Object(fields) = expected {
+        if is_operator_object(fields) {
+            let attributes = [GrowthBookAttribute::new(String::from("value"), actual.clone())];
+            let nested = ctx.with_attributes(&attributes);
+            return fields.iter().all(|field| verify(Some(&attributes[0]), field, &nested, false));
+        }
+    }
+    if case_insensitive {
+        if let (GrowthBookAttributeValue::String(actual), GrowthBookAttributeValue::String(expected)) = (actual, expected) {
+            return actual.to_lowercase() == expected.to_lowercase();
+        }
+    }
+    actual.strict_eq(expected)
+}
+
+/// Resolve a condition-level reference. Unknown reference fields are ignored.
+fn saved_group(
+    reference: &GrowthBookAttributeValue,
+    ctx: &ConditionEvalContext,
+) -> bool {
+    let GrowthBookAttributeValue::Object(fields) = reference else {
+        return false;
+    };
+    let field = |key: &str| fields.iter().find(|field| field.key == key).map(|field| &field.value);
+    let Some(GrowthBookAttributeValue::String(id)) = field("id") else {
+        return false;
+    };
+    let attribute_key = match field("attributeKey") {
+        None => None,
+        Some(GrowthBookAttributeValue::String(key)) => Some(key),
+        _ => return false,
+    };
+    let Some(next) = ctx.enter_group(id) else {
+        return false;
+    };
+    match ctx.saved_group(id) {
+        Some(SavedGroup::List {
+            attribute_key: entry_key,
+            values: Some(values),
+        }) => {
+            let Some(key) = attribute_key.or(entry_key.as_ref()) else {
+                return false;
+            };
+            let actual = ctx.find_value(key).unwrap_or(GrowthBookAttributeValue::Empty);
+            super::operator_condition::value_in_members(&actual, values, false)
+        },
+        Some(SavedGroup::Condition(condition)) => condition.matches(&next),
+        _ => false,
     }
 }
 

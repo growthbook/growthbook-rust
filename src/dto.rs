@@ -14,6 +14,7 @@ pub struct GrowthBookResponse {
     pub features: Option<HashMap<String, GrowthBookFeature>>,
     pub encrypted_features: Option<String>,
     pub saved_groups: Option<Value>,
+    pub encrypted_saved_groups: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug)]

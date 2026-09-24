@@ -24,6 +24,45 @@ pub enum GrowthBookAttributeValue {
     Object(Vec<GrowthBookAttribute>),
 }
 
+/// A saved group from a legacy or v2 payload. Invalid entries remain present
+/// so exclusion rules can distinguish malformed groups from unknown ids.
+#[derive(Clone, Debug)]
+pub enum SavedGroup {
+    /// A v1 bare array, used only by `$inGroup` and `$notInGroup`.
+    LegacyList(Vec<GrowthBookAttributeValue>),
+    /// A v2 list. Missing or invalid fields are kept as `None`; a reference
+    /// can supply an attribute override, but it cannot supply missing values.
+    List {
+        attribute_key: Option<String>,
+        values: Option<Vec<GrowthBookAttributeValue>>,
+    },
+    /// A v2 condition evaluated against the current attributes.
+    Condition(Vec<GrowthBookAttribute>),
+    /// A malformed entry or a group type this SDK does not recognize.
+    Invalid,
+}
+
+impl From<&Value> for SavedGroup {
+    fn from(entry: &Value) -> Self {
+        let values = |items: &[Value]| items.iter().cloned().map(GrowthBookAttributeValue::from).collect();
+        if let Some(items) = entry.as_array() {
+            return Self::LegacyList(values(items));
+        }
+        match entry.get("type").and_then(Value::as_str) {
+            Some("list") => Self::List {
+                attribute_key: entry.get("attributeKey").and_then(Value::as_str).map(str::to_owned),
+                values: entry.get("values").and_then(Value::as_array).map(|items| values(items)),
+            },
+            Some("condition") => entry
+                .get("condition")
+                .and_then(|condition| GrowthBookAttribute::from(condition.clone()).ok())
+                .map(Self::Condition)
+                .unwrap_or(Self::Invalid),
+            _ => Self::Invalid,
+        }
+    }
+}
+
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FeatureResult {

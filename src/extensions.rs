@@ -138,7 +138,7 @@ impl FindGrowthBookAttribute for Vec<GrowthBookAttribute> {
         &self,
         attribute_key: &str,
     ) -> Option<GrowthBookAttributeValue> {
-        look_for_attribute(0, attribute_key, self).map(|it| it.value)
+        look_for_attribute(attribute_key, self)
     }
 }
 
@@ -147,29 +147,35 @@ impl FindGrowthBookAttribute for &[GrowthBookAttribute] {
         &self,
         attribute_key: &str,
     ) -> Option<GrowthBookAttributeValue> {
-        look_for_attribute(0, attribute_key, self).map(|it| it.value)
+        look_for_attribute(attribute_key, self)
     }
 }
 
 fn look_for_attribute(
-    split_index: usize,
     attribute_key: &str,
     user_attributes: &[GrowthBookAttribute],
-) -> Option<GrowthBookAttribute> {
-    let split = attribute_key.split('.').collect::<Vec<&str>>();
-    let key_part = split[split_index];
-    let option_attribute = user_attributes.iter().find(|item| item.key == key_part);
-    if let Some(found_attribute) = option_attribute {
-        if split.len().gt(&(split_index + 1)) {
-            match found_attribute.value.clone() {
-                GrowthBookAttributeValue::Object(it) => look_for_attribute(split_index + 1, attribute_key, &it),
-                GrowthBookAttributeValue::Empty => None,
-                _ => Some(found_attribute.clone()),
-            }
-        } else {
-            Some(found_attribute.clone())
-        }
-    } else {
-        None
+) -> Option<GrowthBookAttributeValue> {
+    let mut parts = attribute_key.split('.').peekable();
+    let first = parts.next()?;
+    let mut value = &user_attributes.iter().find(|attribute| attribute.key == first)?.value;
+    while let Some(part) = parts.next() {
+        value = match value {
+            GrowthBookAttributeValue::Object(fields) => &fields.iter().find(|attribute| attribute.key == part)?.value,
+            GrowthBookAttributeValue::Array(items) => {
+                if part == "length" && parts.peek().is_none() {
+                    return Some(GrowthBookAttributeValue::Int(items.len() as i64));
+                }
+                let index = part.parse::<usize>().ok()?;
+                // JS array property names use canonical indices, not "01" or "+1".
+                if index.to_string() != part {
+                    return None;
+                }
+                items.get(index)?
+            },
+            // A missing path segment must not return its scalar parent: doing
+            // so could match a saved list against the wrong attribute value.
+            _ => return None,
+        };
     }
+    Some(value.clone())
 }

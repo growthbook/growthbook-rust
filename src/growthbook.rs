@@ -12,6 +12,8 @@ pub struct GrowthBook {
     pub features: HashMap<String, GrowthBookFeature>,
     pub attributes: Option<HashMap<String, GrowthBookAttribute>>,
     pub sticky_bucket_service: Option<Arc<dyn StickyBucketService>>,
+    /// Parsed saved groups. Wrap legacy value vectors in [`crate::model_public::SavedGroup::LegacyList`]
+    /// when constructing this map directly, or use the client's JSON builder method.
     pub saved_groups: SavedGroups,
 }
 

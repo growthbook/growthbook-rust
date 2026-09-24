@@ -1,4 +1,5 @@
 use crate::condition::eval_context::ConditionEvalContext;
+use crate::condition::use_case::matches_value;
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
@@ -12,7 +13,7 @@ impl OperatorCondition {
         recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
     ) -> bool {
         match &feature_attribute.value {
-            GrowthBookAttributeValue::Object(it) => it.iter().all(|next| !recursive(parent_attribute, next, ctx, false)),
+            GrowthBookAttributeValue::Object(it) => !it.iter().all(|next| recursive(parent_attribute, next, ctx, false)),
             _ => false,
         }
     }
@@ -40,23 +41,13 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
     ) -> bool {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(feature_values) => {
                 if let Some(GrowthBookAttributeValue::Array(user_values)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    feature_values.iter().all(|feature_item| {
-                        user_values.iter().any(|user_item| {
-                            if case_insensitive {
-                                match (feature_item, user_item) {
-                                    (GrowthBookAttributeValue::String(f), GrowthBookAttributeValue::String(u)) => f.to_lowercase() == u.to_lowercase(),
-                                    _ => feature_item == user_item,
-                                }
-                            } else {
-                                feature_item == user_item
-                            }
-                        })
-                    })
+                    feature_values
+                        .iter()
+                        .all(|feature_item| user_values.iter().any(|user_item| matches_value(user_item, feature_item, ctx, case_insensitive)))
                 } else {
                     false
                 }
@@ -137,30 +128,11 @@ impl OperatorCondition {
         case_insensitive: bool,
         _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
     ) -> bool {
-        if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            match &feature_attribute.value {
-                GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().any(|feature_item| match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| {
-                        if case_insensitive {
-                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
-                        } else {
-                            feature_item.to_string() == user_item.to_string()
-                        }
-                    }),
-                    GrowthBookAttributeValue::Empty => false,
-                    it => {
-                        if case_insensitive {
-                            feature_item.to_string().to_lowercase() == it.to_string().to_lowercase()
-                        } else {
-                            feature_item.to_string() == it.to_string()
-                        }
-                    },
-                }),
-                _ => false,
-            }
-        } else {
-            false
-        }
+        let GrowthBookAttributeValue::Array(members) = &feature_attribute.value else {
+            return false;
+        };
+        let actual = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+        value_in_members(&actual, members, case_insensitive)
     }
 
     pub fn nin(
@@ -168,32 +140,12 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
     ) -> bool {
-        if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            match &feature_attribute.value {
-                GrowthBookAttributeValue::Array(feature_array) => feature_array.iter().all(|feature_item| !match &user_value {
-                    GrowthBookAttributeValue::Array(user_array) => user_array.iter().any(|user_item| {
-                        if case_insensitive {
-                            feature_item.to_string().to_lowercase() == user_item.to_string().to_lowercase()
-                        } else {
-                            feature_item.to_string() == user_item.to_string()
-                        }
-                    }),
-                    GrowthBookAttributeValue::Empty => false,
-                    it => {
-                        if case_insensitive {
-                            feature_item.to_string().to_lowercase() == it.to_string().to_lowercase()
-                        } else {
-                            feature_item.to_string() == it.to_string()
-                        }
-                    },
-                }),
-                _ => false,
-            }
-        } else {
-            false
+        if !matches!(feature_attribute.value, GrowthBookAttributeValue::Array(_)) {
+            return false;
         }
+        !Self::is_in(parent_attribute, feature_attribute, ctx, case_insensitive, recursive)
     }
 
     pub fn in_group(
@@ -203,10 +155,9 @@ impl OperatorCondition {
     ) -> bool {
         // The condition value is a saved-group id; look it up and test membership.
         if let GrowthBookAttributeValue::String(group_id) = &feature_attribute.value {
-            if let Some(members) = ctx.saved_group(group_id) {
-                if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    return value_in_members(&user_value, members);
-                }
+            if let Some(members) = ctx.saved_group_values(group_id) {
+                let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+                return value_in_members(&user_value, members, false);
             }
         }
         false
@@ -217,8 +168,13 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        // Negation: an unknown group or a missing attribute means "not in group".
-        !Self::in_group(parent_attribute, feature_attribute, ctx)
+        if let GrowthBookAttributeValue::String(group_id) = &feature_attribute.value {
+            if let Some(members) = ctx.saved_group_values(group_id) {
+                let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+                return !value_in_members(&user_value, members, false);
+            }
+        }
+        false
     }
 
     pub fn or(
@@ -244,16 +200,25 @@ impl OperatorCondition {
     }
 }
 
-// Saved-group membership uses type-strict equality (via `PartialEq`), so the
-// string "2" matches "2" but not the integer 2. An array attribute matches if
-// any of its elements is a member.
-fn value_in_members(
+/// Membership uses JS numeric equality without coercing strings. An array
+/// attribute matches when any of its elements belongs to the group.
+pub(super) fn value_in_members(
     user_value: &GrowthBookAttributeValue,
     members: &[GrowthBookAttributeValue],
+    case_insensitive: bool,
 ) -> bool {
+    let matches = |actual: &GrowthBookAttributeValue| {
+        members.iter().any(|member| match (actual, member) {
+            (GrowthBookAttributeValue::String(actual), GrowthBookAttributeValue::String(member)) if case_insensitive => actual.to_lowercase() == member.to_lowercase(),
+            // JS includes uses reference identity for objects and nested arrays;
+            // independently decoded payload and attribute values cannot share it.
+            (GrowthBookAttributeValue::Object(_) | GrowthBookAttributeValue::Array(_), _) => false,
+            _ => member.strict_eq(actual),
+        })
+    };
     match user_value {
-        GrowthBookAttributeValue::Array(items) => items.iter().any(|item| members.contains(item)),
-        other => members.contains(other),
+        GrowthBookAttributeValue::Array(items) => items.iter().any(matches),
+        other => matches(other),
     }
 }
 
