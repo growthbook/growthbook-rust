@@ -57,7 +57,6 @@ impl GrowthBook {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use std::fs;
 
     use serde::Deserialize;
     use serde_json::Value;
@@ -69,22 +68,9 @@ mod test {
     use crate::model_public::FeatureResult;
     use crate::model_public::GrowthBookAttribute;
 
-    /// These feature cases require contextual bandits, which Rust does not support.
-    /// Keep the fixtures in the corpus and run them with the ignored bandit suite.
-    const CONTEXTUAL_BANDIT_CASES: [&str; 4] = [
-        "CB rule with empty contexts (explore) buckets on marginal weights with fallback leaf -1",
-        "CB rule with no contexts key falls back to marginal weights (fallback leaf -1)",
-        "CB rule with empty contexts uses marginal weights (fallback leaf -1)",
-        "CB rule with empty contexts is overridden by forced variation like a normal experiment",
-    ];
-
     #[tokio::test]
     async fn evaluate_get_bucket_range() -> Result<(), Box<dyn std::error::Error>> {
-        let mut cases = Cases::new();
-        for name in CONTEXTUAL_BANDIT_CASES {
-            assert!(cases.feature.iter().any(|case| case[0].as_str() == Some(name)), "Stale contextual-bandit exclusion: {name}");
-        }
-        cases.feature.retain(|case| !CONTEXTUAL_BANDIT_CASES.contains(&case[0].as_str().expect("case name")));
+        let cases = Cases::new();
         evaluate_feature_cases(cases.feature);
         Ok(())
     }
@@ -92,10 +78,18 @@ mod test {
     #[tokio::test]
     #[ignore = "Contextual bandits are not supported by the Rust SDK"]
     async fn evaluate_contextual_bandits() {
-        let cases = Cases::new();
-        let mut bandit_cases = cases.contextual_bandit;
-        bandit_cases.extend(cases.feature.into_iter().filter(|case| CONTEXTUAL_BANDIT_CASES.contains(&case[0].as_str().expect("case name"))));
-        evaluate_feature_cases(bandit_cases);
+        let all = crate::corpus::load();
+        let active = crate::corpus::active();
+        let mut cases = all["contextualBandit"].as_array().expect("bandit cases").clone();
+        cases.extend(
+            all["feature"]
+                .as_array()
+                .expect("feature cases")
+                .iter()
+                .filter(|case| !active["feature"].as_array().expect("active features").contains(case))
+                .cloned(),
+        );
+        evaluate_feature_cases(cases);
     }
 
     fn evaluate_feature_cases(cases: Vec<Value>) {
@@ -146,7 +140,6 @@ mod test {
     #[serde(rename_all = "camelCase")]
     struct Cases {
         feature: Vec<Value>,
-        contextual_bandit: Vec<Value>,
     }
 
     #[derive(Deserialize, Clone)]
@@ -191,9 +184,7 @@ mod test {
 
     impl Cases {
         pub fn new() -> Self {
-            let contents = fs::read_to_string("./tests/all_cases.json").expect("Should have been able to read the file");
-
-            serde_json::from_str(&contents).expect("Failed to create cases")
+            serde_json::from_value(crate::corpus::active()).expect("Failed to create cases")
         }
     }
 }

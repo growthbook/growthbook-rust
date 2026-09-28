@@ -314,8 +314,6 @@ fn choose_variation(
 
 #[cfg(test)]
 mod test {
-    use std::fs;
-
     use serde::Deserialize;
     use serde_json::Value;
 
@@ -378,9 +376,7 @@ mod test {
 
     impl Cases {
         pub fn new() -> Self {
-            let contents = fs::read_to_string("./tests/all_cases.json").expect("Should have been able to read the file");
-
-            serde_json::from_str(&contents).expect("Failed to create cases")
+            serde_json::from_value(crate::corpus::active()).expect("Failed to create cases")
         }
     }
 }

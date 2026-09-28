@@ -1,7 +1,9 @@
+#[path = "cases/mod.rs"]
+mod corpus;
+
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fs;
 use std::sync::Arc;
 
 use growthbook_rust::dto::GrowthBookFeature;
@@ -71,8 +73,7 @@ struct ExpectedResult {
 
 /// Loads and parses the sticky bucket test cases from the JSON file.
 fn load_test_cases() -> Vec<TestCase> {
-    let content = fs::read_to_string("tests/all_cases.json").expect("Failed to read all_cases.json");
-    let all_cases: AllCases = serde_json::from_str(&content).expect("Failed to parse sections");
+    let all_cases: AllCases = serde_json::from_value(corpus::active()).expect("Failed to parse sections");
 
     all_cases.sticky_bucket.into_iter().map(|v| parse_test_case(&v)).collect()
 }

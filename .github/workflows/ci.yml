@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   build_and_test:
@@ -42,10 +41,8 @@ jobs:
       run: cargo clippy -- -D warnings # Treat warnings as errors
 
   corpus_freshness:
-    # Drift check between tests/all_cases.json and the JS SDK's cases.json.
-    # Fails the build on any "missing" or body-"drift" case not listed in
-    # tests/scripts/corpus_skiplist.json. Extras (Rust's local additions) are
-    # reported but never fail.
+    # Verify the pinned upstream copy and detect newer shared cases.
+    # Runtime exclusions do not exempt cases from freshness checks.
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -54,3 +51,5 @@ jobs:
         python-version: "3.13"
     - name: Check corpus freshness vs JS SDK
       run: python3 tests/scripts/check_corpus_freshness.py
+    - name: Test corpus freshness checker
+      run: python3 -m unittest discover -s tests/scripts -p 'test_*.py'

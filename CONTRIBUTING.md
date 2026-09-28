@@ -164,37 +164,34 @@ network latency. These measurements are observational, not CI timing gates.
 
 ### Conformance corpus
 
-`tests/all_cases.json` contains shared SDK conformance cases used by the Rust
-tests, plus Rust-specific regression cases. Keep every base suite when updating
-the file, even if Rust does not yet have a runner for a suite. Preserve local
-additions and change `specVersion` only after merging the complete base corpus.
-The version label alone does not indicate SDK support for every capability.
+`tests/cases/cases.json` is an exact, pinned copy of the upstream SDK corpus.
+Rust-specific additions live in `tests/cases/rust.json`, and unsupported suites
+or cases are listed with reasons in `tests/cases/exclusions.json`. The shared
+loader combines these files offline without changing upstream expectations.
+See [the corpus guide](tests/cases/README.md) for snapshot update instructions.
 
-Contextual bandits are unsupported. Their 35 dedicated cases and four related
-feature cases remain in the corpus but run only in the ignored
-`growthbook::test::evaluate_contextual_bandits` test. The feature runner excludes
-those four cases by exact name; ordinary experiment and unknown-field tolerance
-cases still run. These execution exclusions do not exempt cases from freshness
-checks. When implementing bandits, remove the ignore and exclusions and extend
-the runner to check bandit metadata as well as feature results.
+Contextual bandits remain unsupported and excluded from normal execution.
+Their cases are retained in the upstream file and available through the ignored
+`growthbook::test::evaluate_contextual_bandits` test. Saved-group v2 suites run
+in `tests/saved_group_references_v2.rs`.
 
-CI compares the corpus against the JavaScript SDK's current `main` branch using:
+CI validates the pinned checksum and compares every upstream suite with the
+JavaScript SDK's current `main` branch:
 
 ```sh
 python3 tests/scripts/check_corpus_freshness.py
+python3 -m unittest discover -s tests/scripts -p 'test_*.py'
 ```
 
-The script fetches upstream cases over the network. To compare against a local
-copy instead:
+To compare against a local copy instead of fetching:
 
 ```sh
 python3 tests/scripts/check_corpus_freshness.py --js-source /path/to/cases.json
 ```
 
-Missing or changed cases fail the check unless listed in
-`tests/scripts/corpus_skiplist.json`. Extra Rust cases are informational.
-Investigate mismatches before changing the corpus or skiplist; a freshness
-failure can reflect upstream additions even when local Rust tests pass.
+Missing or changed upstream cases fail. Rust additions and execution exclusions
+cannot hide drift. Investigate freshness failures even when local Rust tests
+pass; they can reflect new upstream cases for unsupported SDK capabilities.
 
 ### Server-generated payloads
 

@@ -1,0 +1,13 @@
+{
+  "suites": {
+    "contextualBandit": "Contextual bandits are not supported by the Rust SDK."
+  },
+  "cases": {
+    "feature": {
+      "CB rule with empty contexts (explore) buckets on marginal weights with fallback leaf -1": "Contextual bandits are not supported by the Rust SDK.",
+      "CB rule with no contexts key falls back to marginal weights (fallback leaf -1)": "Contextual bandits are not supported by the Rust SDK.",
+      "CB rule with empty contexts uses marginal weights (fallback leaf -1)": "Contextual bandits are not supported by the Rust SDK.",
+      "CB rule with empty contexts is overridden by forced variation like a normal experiment": "Contextual bandits are not supported by the Rust SDK."
+    }
+  }
+}

@@ -6,8 +6,11 @@ use growthbook_rust::client::{GrowthBookClient, GrowthBookClientBuilder, GrowthB
 use growthbook_rust::model_public::{FeatureResult, GrowthBookAttribute};
 use serde_json::{json, Value};
 
+#[path = "cases/mod.rs"]
+mod corpus;
+
 fn suite(name: &str) -> Vec<Value> {
-    let corpus: Value = serde_json::from_str(include_str!("all_cases.json")).expect("valid corpus");
+    let corpus = corpus::active();
     corpus["savedGroupReferencesV2"][name].as_array().expect("saved group v2 suite").clone()
 }
 
