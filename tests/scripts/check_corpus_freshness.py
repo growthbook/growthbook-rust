@@ -1,35 +1,9 @@
 #!/usr/bin/env python3
-"""Check Rust's tests/all_cases.json against the JS SDK's cases.json.
+"""Verify the pinned cases.json and compare it against the upstream SDK corpus.
 
-The two corpora are maintained by hand; `specVersion` is a label, not a
-contract. This script diffs the corpora and makes drift visible.
-
-Diff categories:
-
-  - "missing" — JS has a case name Rust doesn't.
-                Fails CI unless the name is in skiplist["missing"][key].
-  - "drift"   — Both sides have the case name, but the bodies differ
-                (canonical-JSON SHA1 mismatch). Fails CI unless the name
-                is in skiplist["drift"][key]. Catches the silent
-                case-body update that pure name-matching misses.
-  - "extra"   — Rust has a case name JS doesn't. Reported as
-                informational only — Rust carries documented extensions
-                plus locally-authored regressions. Never fails CI.
-
-Source-of-truth URL is configurable via --js-source or env GB_JS_CASES_URL.
-Defaults to the JS SDK's main-branch raw URL.
-
-Exit codes:
-  0 — no actionable findings (or all on skiplist), OR the JS source could
-      not be fetched (network blip) — that is a warning, not a failure, so a
-      transient outage doesn't break unrelated builds
-  1 — at least one missing or drifted case isn't on the skiplist
-  2 — local IO/parse error (missing all_cases.json or bad skiplist)
-
-Run locally:
-  python3 tests/scripts/check_corpus_freshness.py
-  python3 tests/scripts/check_corpus_freshness.py --js-source /path/to/local/cases.json
-  GB_JS_CASES_URL=https://... python3 tests/scripts/check_corpus_freshness.py
+Rust additions and execution exclusions never suppress missing or changed base
+cases. Tests use only checked-in files; this freshness check optionally fetches
+newer upstream data. A fetch failure warns and skips, as in the existing CI job.
 """
 
 from __future__ import annotations
@@ -43,258 +17,104 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LOCAL_CASES = REPO_ROOT / "tests" / "all_cases.json"
-SKIPLIST = REPO_ROOT / "tests" / "scripts" / "corpus_skiplist.json"
-
+LOCAL_CASES = REPO_ROOT / "tests" / "cases" / "cases.json"
+SOURCE = LOCAL_CASES.with_name("source.json")
 DEFAULT_JS_URL = "https://raw.githubusercontent.com/growthbook/growthbook/main/packages/sdk-js/test/cases.json"
-
-# Top-level keys to diff. Other keys in cases.json (specVersion, decrypt
-# binary blobs, urlRedirect which Rust doesn't yet wire) are skipped either
-# because they're scalar metadata or because the divergence is tracked
-# separately.
-KEYS_TO_DIFF = (
-    "evalCondition",
-    "feature",
-    "run",
-    "hash",
-    "getBucketRange",
-    "chooseVariation",
-    "getQueryStringOverride",
-    "inNamespace",
-    "getEqualWeights",
-    "stickyBucket",
-)
-
-
-def _fetch_js_cases(source: str) -> dict:
-    """Fetch JS cases.json from a URL or local path."""
-    if source.startswith(("http://", "https://")):
-        try:
-            req = urllib.request.Request(source, headers={"User-Agent": "growthbook-rust-corpus-check"})
-            with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310
-                return json.loads(resp.read().decode("utf-8"))
-        except urllib.error.URLError as e:
-            raise RuntimeError(f"fetch failed: {source}: {e}") from e
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"JS source did not return valid JSON: {e}") from e
-    path = Path(source)
-    if not path.is_file():
-        raise RuntimeError(f"local source not found: {source}")
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"local source invalid JSON: {e}") from e
 
 
 def _load_local_cases() -> dict:
-    if not LOCAL_CASES.is_file():
-        raise RuntimeError(f"local all_cases.json not found: {LOCAL_CASES}")
-    return json.loads(LOCAL_CASES.read_text(encoding="utf-8"))
+    raw = LOCAL_CASES.read_bytes()
+    source = json.loads(SOURCE.read_text())
+    if hashlib.sha256(raw).hexdigest() != source["sha256"]:
+        raise ValueError("cases.json does not match its recorded upstream checksum; update the complete snapshot and source.json together")
+    cases = json.loads(raw)
+    if cases.get("specVersion") != source["specVersion"]:
+        raise ValueError("specVersion does not match source.json")
+    return cases
 
 
-def _load_skiplist() -> Dict[str, Dict[str, Set[str]]]:
-    """Load skiplist. File format:
-
-        {
-          "missing": { "<top_level_key>": ["case name", ...] },
-          "drift":   { "<top_level_key>": ["case name", ...] }
-        }
-
-    `missing` — case names JS has and Rust deliberately doesn't carry yet.
-    `drift`   — case names where Rust deliberately keeps a different body.
-
-    Extras (Rust has, JS doesn't) are reported but never fail. The file is
-    optional.
-    """
-    if not SKIPLIST.is_file():
-        return {"missing": {}, "drift": {}}
-    try:
-        data = json.loads(SKIPLIST.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"skiplist invalid JSON: {e}") from e
-    return {
-        "missing": {k: set(v) for k, v in (data.get("missing") or {}).items()},
-        "drift": {k: set(v) for k, v in (data.get("drift") or {}).items()},
-    }
+def _fetch_js_cases(source: str) -> dict:
+    if source.startswith(("http://", "https://")):
+        request = urllib.request.Request(source, headers={"User-Agent": "growthbook-rust-corpus-check"})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read().decode("utf-8"))
+    return json.loads(Path(source).read_text())
 
 
-def _case_signatures_grouped(cases: list) -> Dict[str, List[str]]:
-    """Return {case_name: [body_hash, ...]} preserving order.
-
-    Body = everything after the name (case[1:]), serialized via canonical
-    JSON (sorted keys + compact separators) so logically-equal cases hash
-    the same regardless of key order or whitespace. Same-named cases keep
-    every occurrence so drift in any duplicate is visible.
-    """
-    out: Dict[str, List[str]] = {}
-    for c in cases:
-        if not (isinstance(c, list) and c and isinstance(c[0], str)):
-            continue
-        name = c[0]
-        body = json.dumps(c[1:], sort_keys=True, separators=(",", ":"))
-        h = hashlib.sha1(body.encode("utf-8")).hexdigest()[:16]
-        out.setdefault(name, []).append(h)
-    return out
+def _suites(corpus: dict, prefix: str = "") -> dict[str, list]:
+    suites = {}
+    for key, value in corpus.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, list):
+            suites[path] = value
+        elif isinstance(value, dict):
+            suites.update(_suites(value, path))
+    return suites
 
 
-def _diff(
-    js_cases: dict, local_cases: dict, skip: Dict[str, Set[str]]
-) -> Tuple[Dict[str, List[str]], Dict[str, List[str]], Dict[str, List[str]], Dict[str, List[str]], Dict[str, List[str]]]:
-    actionable_missing: Dict[str, List[str]] = {}
-    skipped_missing: Dict[str, List[str]] = {}
-    extras: Dict[str, List[str]] = {}
-    actionable_drift: Dict[str, List[str]] = {}
-    skipped_drift: Dict[str, List[str]] = {}
-
-    missing_skip = skip.get("missing", {})
-    drift_skip = skip.get("drift", {})
-
-    for key in KEYS_TO_DIFF:
-        js_list = js_cases.get(key, [])
-        local_list = local_cases.get(key, [])
-        if not isinstance(js_list, list) or not isinstance(local_list, list):
-            continue
-
-        js_grouped = _case_signatures_grouped(js_list)
-        local_grouped = _case_signatures_grouped(local_list)
-
-        js_names_ordered: List[str] = []
-        seen_js: Set[str] = set()
-        for c in js_list:
-            if isinstance(c, list) and c and isinstance(c[0], str) and c[0] not in seen_js:
-                js_names_ordered.append(c[0])
-                seen_js.add(c[0])
-
-        local_names_ordered: List[str] = []
-        seen_local: Set[str] = set()
-        for c in local_list:
-            if isinstance(c, list) and c and isinstance(c[0], str) and c[0] not in seen_local:
-                local_names_ordered.append(c[0])
-                seen_local.add(c[0])
-
-        missing = [n for n in js_names_ordered if n not in local_grouped]
-        extra = [n for n in local_names_ordered if n not in js_grouped]
-        drift = [n for n in js_names_ordered if n in local_grouped and Counter(js_grouped[n]) != Counter(local_grouped[n])]
-
-        key_missing_skip = missing_skip.get(key, set())
-        key_drift_skip = drift_skip.get(key, set())
-
-        actionable_missing[key] = [n for n in missing if n not in key_missing_skip]
-        skipped_missing[key] = [n for n in missing if n in key_missing_skip]
-        extras[key] = extra
-        actionable_drift[key] = [n for n in drift if n not in key_drift_skip]
-        skipped_drift[key] = [n for n in drift if n in key_drift_skip]
-
-    return actionable_missing, skipped_missing, extras, actionable_drift, skipped_drift
+def _signatures(cases: list) -> dict[str, Counter]:
+    grouped = {}
+    for case in cases:
+        if not isinstance(case, list) or not case:
+            raise ValueError("Every corpus case must be a nonempty array")
+        # Most suites have string names; getEqualWeights uses a numeric input.
+        name = case[0] if isinstance(case[0], str) else json.dumps(case[0], sort_keys=True)
+        signature = json.dumps(case[1:], sort_keys=True, separators=(",", ":"))
+        grouped.setdefault(name, Counter())[signature] += 1
+    return grouped
 
 
-def _spec_versions(js_cases: dict, local_cases: dict) -> Tuple[str, str]:
-    return (str(js_cases.get("specVersion", "<unset>")), str(local_cases.get("specVersion", "<unset>")))
+def _diff(upstream: dict, local: dict) -> tuple[dict, dict, dict]:
+    missing, drift, extras = {}, {}, {}
+    upstream_suites, local_suites = _suites(upstream), _suites(local)
+    for suite in sorted(upstream_suites.keys() | local_suites.keys()):
+        expected = _signatures(upstream_suites.get(suite, []))
+        actual = _signatures(local_suites.get(suite, []))
+        missing[suite] = [name for name in expected if name not in actual]
+        drift[suite] = [name for name in expected if name in actual and expected[name] != actual[name]]
+        extras[suite] = [name for name in actual if name not in expected]
+    return missing, drift, extras
 
 
-def _format_report(
-    js_spec: str,
-    local_spec: str,
-    actionable_missing: Dict[str, List[str]],
-    skipped_missing: Dict[str, List[str]],
-    extras: Dict[str, List[str]],
-    actionable_drift: Dict[str, List[str]],
-    skipped_drift: Dict[str, List[str]],
-) -> str:
-    lines = []
-    lines.append("=== Corpus freshness check (Rust vs JS SDK) ===")
-    lines.append(f"  JS specVersion: {js_spec}")
-    lines.append(f"  Rust specVersion: {local_spec}")
-    if js_spec != local_spec:
-        lines.append("  ⚠ specVersion mismatch — bump Rust's value when you catch up to JS's.")
-    lines.append("")
-
-    n_missing = sum(len(v) for v in actionable_missing.values())
-    n_skip_missing = sum(len(v) for v in skipped_missing.values())
-    n_drift = sum(len(v) for v in actionable_drift.values())
-    n_skip_drift = sum(len(v) for v in skipped_drift.values())
-    n_extra = sum(len(v) for v in extras.values())
-
-    if n_missing + n_drift == 0:
-        lines.append(f"OK: no missing/drifted cases (skipped-missing: {n_skip_missing}, skipped-drift: {n_skip_drift}, extras: {n_extra})")
-    else:
-        lines.append(f"DRIFT: {n_missing} missing + {n_drift} body-drift (skipped: {n_skip_missing} missing, {n_skip_drift} drift; {n_extra} Rust extras)")
-    lines.append("")
-
-    def _section(title: str, data: Dict[str, List[str]]) -> None:
-        if not any(data.values()):
-            return
-        lines.append(f"--- {title} ---")
-        for key, names in data.items():
-            if not names:
-                continue
-            lines.append(f"  [{key}] ({len(names)})")
-            for n in names:
-                lines.append(f"    - {n}")
-        lines.append("")
-
-    _section("Missing in Rust (FAILS CI)", actionable_missing)
-    _section("Body-drift: same name, different case body (FAILS CI)", actionable_drift)
-    _section("Missing in Rust — skipped via corpus_skiplist.json", skipped_missing)
-    _section("Body-drift — skipped via corpus_skiplist.json", skipped_drift)
-    _section("Extra in Rust (informational; never fails)", extras)
-    return "\n".join(lines)
-
-
-def main(argv: List[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument(
-        "--js-source",
-        default=os.environ.get("GB_JS_CASES_URL", DEFAULT_JS_URL),
-        help="URL or local path to JS cases.json (default: JS SDK main branch)",
-    )
-    parser.add_argument("--json", action="store_true", help="output machine-readable JSON instead of text")
+    parser.add_argument("--js-source", default=os.environ.get("GB_JS_CASES_URL", DEFAULT_JS_URL), help="Upstream URL or local path; defaults to SDK JS main")
+    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     args = parser.parse_args(argv)
-
-    # Local corpus / skiplist problems are real repo errors → hard fail.
     try:
-        local_cases = _load_local_cases()
-        skip = _load_skiplist()
-    except RuntimeError as e:
-        print(f"corpus check infra error: {e}", file=sys.stderr)
+        local = _load_local_cases()
+    except (OSError, ValueError, KeyError) as error:
+        print(f"corpus check error: {error}", file=sys.stderr)
         return 2
-
-    # A failure to fetch the JS source (network blip, GitHub outage) must not
-    # break the build — the check is advisory drift detection, not a gate on
-    # the SDK itself. Warn and pass.
     try:
-        js_cases = _fetch_js_cases(args.js_source)
-    except RuntimeError as e:
-        print(f"WARNING: corpus freshness check skipped — could not fetch JS cases: {e}", file=sys.stderr)
+        upstream = _fetch_js_cases(args.js_source)
+    except (OSError, ValueError) as error:
+        print(f"WARNING: corpus freshness check skipped — could not fetch JS cases: {error}")
         return 0
-
-    actionable_missing, skipped_missing, extras, actionable_drift, skipped_drift = _diff(js_cases, local_cases, skip)
-    js_spec, local_spec = _spec_versions(js_cases, local_cases)
-
+    try:
+        missing, drift, extras = _diff(upstream, local)
+    except (ValueError, AttributeError) as error:
+        print(f"corpus check error: {error}", file=sys.stderr)
+        return 2
+    failed = any(missing.values()) or any(drift.values())
     if args.json:
-        print(
-            json.dumps(
-                {
-                    "js_specVersion": js_spec,
-                    "rust_specVersion": local_spec,
-                    "missing_actionable": actionable_missing,
-                    "missing_skipped": skipped_missing,
-                    "drift_actionable": actionable_drift,
-                    "drift_skipped": skipped_drift,
-                    "extras": extras,
-                },
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps({"js_specVersion": upstream.get("specVersion"), "rust_specVersion": local.get("specVersion"), "missing_actionable": missing, "drift_actionable": drift, "extras": extras}, indent=2))
     else:
-        print(_format_report(js_spec, local_spec, actionable_missing, skipped_missing, extras, actionable_drift, skipped_drift))
-
-    fail = any(actionable_missing.values()) or any(actionable_drift.values())
-    return 1 if fail else 0
+        print("=== Corpus freshness check (vendored cases.json vs JS SDK) ===")
+        print(f"  JS specVersion: {upstream.get('specVersion')}")
+        print(f"  Vendored specVersion: {local.get('specVersion')}")
+        if upstream.get("specVersion") != local.get("specVersion"):
+            print("  Version labels differ; case-level comparison follows.")
+        print(f"{'DRIFT' if failed else 'OK'}: {sum(map(len, missing.values()))} missing, {sum(map(len, drift.values()))} changed, {sum(map(len, extras.values()))} additional vendored cases")
+        for label, findings in [("Missing (fails CI)", missing), ("Changed (fails CI)", drift), ("Additional vendored cases (informational)", extras)]:
+            for suite, names in findings.items():
+                if names:
+                    print(f"\n{label}: {suite}")
+                    for name in names:
+                        print(f"  - {name}")
+    return int(failed)
 
 
 if __name__ == "__main__":
