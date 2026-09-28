@@ -212,6 +212,7 @@ dependencies installed and saved group references v2 implemented:
 
 ```sh
 node tests/scripts/generate_saved_group_payloads.cjs ../growthbook
+make fmt-json
 cargo test --locked --test server_saved_group_payloads
 ```
 
@@ -231,6 +232,11 @@ cargo clippy --locked -- -D warnings
 
 Use `make fmt` to apply formatting, and review the diff for unrelated changes.
 `rustfmt.toml` holds the formatting configuration.
+
+Use `make fmt-json` after editing or regenerating the server payload fixture or
+benchmark results JSON. It requires Node.js/npm and runs a pinned Prettier
+version through `npx`, downloading it on first use. The command formats only
+those two files; the upstream corpus retains its original bytes.
 
 `make clippy` is stricter than CI: it checks all targets and features and also
 denies `clippy::unwrap_used`. It may report existing issues in test code that

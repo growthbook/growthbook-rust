@@ -8,56 +8,18 @@
         "features": {
           "list": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-list",
-                "condition": {
-                  "id": {
-                    "$in": [
-                      "u_1",
-                      "u_2"
-                    ]
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-list", "condition": { "id": { "$in": ["u_1", "u_2"] } }, "force": "on" }]
           },
           "condition": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-condition",
-                "condition": {
-                  "plan": "pro"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-condition", "condition": { "plan": "pro" }, "force": "on" }]
           },
           "nested": {
             "defaultValue": "off",
             "rules": [
               {
                 "id": "rule-nested",
-                "condition": {
-                  "$and": [
-                    {
-                      "country": "US"
-                    },
-                    {
-                      "plan": "pro"
-                    },
-                    {
-                      "id": {
-                        "$in": [
-                          "u_1",
-                          "u_2"
-                        ]
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "country": "US" }, { "plan": "pro" }, { "id": { "$in": ["u_1", "u_2"] } }] },
                 "force": "on"
               }
             ]
@@ -67,21 +29,7 @@
             "rules": [
               {
                 "id": "rule-all",
-                "condition": {
-                  "$and": [
-                    {
-                      "id": {
-                        "$in": [
-                          "u_1",
-                          "u_2"
-                        ]
-                      }
-                    },
-                    {
-                      "plan": "pro"
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] },
                 "force": "on"
               }
             ]
@@ -91,21 +39,7 @@
             "rules": [
               {
                 "id": "rule-any",
-                "condition": {
-                  "$or": [
-                    {
-                      "id": {
-                        "$in": [
-                          "u_1",
-                          "u_2"
-                        ]
-                      }
-                    },
-                    {
-                      "plan": "pro"
-                    }
-                  ]
-                },
+                "condition": { "$or": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] },
                 "force": "on"
               }
             ]
@@ -115,23 +49,7 @@
             "rules": [
               {
                 "id": "rule-none",
-                "condition": {
-                  "$and": [
-                    {
-                      "id": {
-                        "$nin": [
-                          "u_1",
-                          "u_2"
-                        ]
-                      }
-                    },
-                    {
-                      "$not": {
-                        "plan": "pro"
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "id": { "$nin": ["u_1", "u_2"] } }, { "$not": { "plan": "pro" } }] },
                 "force": "on"
               }
             ]
@@ -141,213 +59,62 @@
             "rules": [
               {
                 "id": "rule-not-both",
-                "condition": {
-                  "$not": {
-                    "$and": [
-                      {
-                        "id": {
-                          "$in": [
-                            "u_1",
-                            "u_2"
-                          ]
-                        }
-                      },
-                      {
-                        "plan": "pro"
-                      }
-                    ]
-                  }
-                },
+                "condition": { "$not": { "$and": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] } },
                 "force": "on"
               }
             ]
           },
           "override": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-override",
-                "condition": {
-                  "backup_id": {
-                    "$in": [
-                      "u_1",
-                      "u_2"
-                    ]
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-override", "condition": { "backup_id": { "$in": ["u_1", "u_2"] } }, "force": "on" }]
           },
           "exclude-override": {
             "defaultValue": "off",
             "rules": [
-              {
-                "id": "rule-exclude-override",
-                "condition": {
-                  "backup_id": {
-                    "$nin": [
-                      "u_1",
-                      "u_2"
-                    ]
-                  }
-                },
-                "force": "on"
-              }
+              { "id": "rule-exclude-override", "condition": { "backup_id": { "$nin": ["u_1", "u_2"] } }, "force": "on" }
             ]
           },
           "numeric": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-numeric",
-                "condition": {
-                  "age": {
-                    "$in": [
-                      21,
-                      30
-                    ]
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-numeric", "condition": { "age": { "$in": [21, 30] } }, "force": "on" }]
           },
           "array": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-array",
-                "condition": {
-                  "tags": {
-                    "$in": [
-                      "vip"
-                    ]
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-array", "condition": { "tags": { "$in": ["vip"] } }, "force": "on" }]
           },
           "dot-path": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-dot-path",
-                "condition": {
-                  "account.id": {
-                    "$in": [
-                      "a_1"
-                    ]
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-dot-path", "condition": { "account.id": { "$in": ["a_1"] } }, "force": "on" }]
           },
           "missing": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-missing",
-                "condition": {
-                  "id": {
-                    "$in": []
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-missing", "condition": { "id": { "$in": [] } }, "force": "on" }]
           },
           "exclude-missing": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-exclude-missing",
-                "condition": {
-                  "id": {
-                    "$nin": []
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-exclude-missing", "condition": { "id": { "$nin": [] } }, "force": "on" }]
           },
-          "invalid": {
-            "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-invalid",
-                "force": "on"
-              }
-            ]
-          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
           "cycle": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-cycle",
-                "condition": {
-                  "__sgCycle__": "cycle-b"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-cycle", "condition": { "__sgCycle__": "cycle-b" }, "force": "on" }]
           },
           "parent": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-parent",
-                "condition": {
-                  "country": "US"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
           },
           "prerequisite-list": {
             "defaultValue": "off",
             "rules": [
-              {
-                "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "value": {
-                        "$in": [
-                          "on"
-                        ]
-                      }
-                    },
-                    "gate": true
-                  }
-                ]
-              },
-              {
-                "id": "rule-prerequisite-list",
-                "force": "on"
-              }
+              { "parentConditions": [{ "id": "parent", "condition": { "value": { "$in": ["on"] } }, "gate": true }] },
+              { "id": "rule-prerequisite-list", "force": "on" }
             ]
           },
           "prerequisite-condition": {
             "defaultValue": "off",
             "rules": [
-              {
-                "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "value": "on"
-                    },
-                    "gate": true
-                  }
-                ]
-              },
-              {
-                "id": "rule-prerequisite-condition",
-                "force": "on"
-              }
+              { "parentConditions": [{ "id": "parent", "condition": { "value": "on" }, "gate": true }] },
+              { "id": "rule-prerequisite-condition", "force": "on" }
             ]
           },
           "experiment": {
@@ -355,26 +122,11 @@
             "rules": [
               {
                 "id": "rule-experiment",
-                "condition": {
-                  "plan": "pro"
-                },
-                "variations": [
-                  "control",
-                  "treatment"
-                ],
+                "condition": { "plan": "pro" },
+                "variations": ["control", "treatment"],
                 "coverage": 1,
-                "weights": [
-                  0.5,
-                  0.5
-                ],
-                "meta": [
-                  {
-                    "key": "0"
-                  },
-                  {
-                    "key": "1"
-                  }
-                ],
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
                 "key": "saved-group-test",
                 "hashAttribute": "id"
               }
@@ -398,50 +150,18 @@
         "features": {
           "list": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-list",
-                "condition": {
-                  "id": {
-                    "$inGroup": "beta"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-list", "condition": { "id": { "$inGroup": "beta" } }, "force": "on" }]
           },
           "condition": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-condition",
-                "condition": {
-                  "plan": "pro"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-condition", "condition": { "plan": "pro" }, "force": "on" }]
           },
           "nested": {
             "defaultValue": "off",
             "rules": [
               {
                 "id": "rule-nested",
-                "condition": {
-                  "$and": [
-                    {
-                      "country": "US"
-                    },
-                    {
-                      "plan": "pro"
-                    },
-                    {
-                      "id": {
-                        "$inGroup": "beta"
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "country": "US" }, { "plan": "pro" }, { "id": { "$inGroup": "beta" } }] },
                 "force": "on"
               }
             ]
@@ -451,18 +171,7 @@
             "rules": [
               {
                 "id": "rule-all",
-                "condition": {
-                  "$and": [
-                    {
-                      "id": {
-                        "$inGroup": "beta"
-                      }
-                    },
-                    {
-                      "plan": "pro"
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] },
                 "force": "on"
               }
             ]
@@ -472,18 +181,7 @@
             "rules": [
               {
                 "id": "rule-any",
-                "condition": {
-                  "$or": [
-                    {
-                      "id": {
-                        "$inGroup": "beta"
-                      }
-                    },
-                    {
-                      "plan": "pro"
-                    }
-                  ]
-                },
+                "condition": { "$or": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] },
                 "force": "on"
               }
             ]
@@ -493,20 +191,7 @@
             "rules": [
               {
                 "id": "rule-none",
-                "condition": {
-                  "$and": [
-                    {
-                      "id": {
-                        "$notInGroup": "beta"
-                      }
-                    },
-                    {
-                      "$not": {
-                        "plan": "pro"
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "id": { "$notInGroup": "beta" } }, { "$not": { "plan": "pro" } }] },
                 "force": "on"
               }
             ]
@@ -516,195 +201,70 @@
             "rules": [
               {
                 "id": "rule-not-both",
-                "condition": {
-                  "$not": {
-                    "$and": [
-                      {
-                        "id": {
-                          "$inGroup": "beta"
-                        }
-                      },
-                      {
-                        "plan": "pro"
-                      }
-                    ]
-                  }
-                },
+                "condition": { "$not": { "$and": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] } },
                 "force": "on"
               }
             ]
           },
           "override": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-override",
-                "condition": {
-                  "backup_id": {
-                    "$inGroup": "beta"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-override", "condition": { "backup_id": { "$inGroup": "beta" } }, "force": "on" }]
           },
           "exclude-override": {
             "defaultValue": "off",
             "rules": [
-              {
-                "id": "rule-exclude-override",
-                "condition": {
-                  "backup_id": {
-                    "$notInGroup": "beta"
-                  }
-                },
-                "force": "on"
-              }
+              { "id": "rule-exclude-override", "condition": { "backup_id": { "$notInGroup": "beta" } }, "force": "on" }
             ]
           },
           "numeric": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-numeric",
-                "condition": {
-                  "age": {
-                    "$inGroup": "numbers"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-numeric", "condition": { "age": { "$inGroup": "numbers" } }, "force": "on" }]
           },
           "array": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-array",
-                "condition": {
-                  "tags": {
-                    "$inGroup": "tags"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-array", "condition": { "tags": { "$inGroup": "tags" } }, "force": "on" }]
           },
           "dot-path": {
             "defaultValue": "off",
             "rules": [
-              {
-                "id": "rule-dot-path",
-                "condition": {
-                  "account.id": {
-                    "$inGroup": "nested-id"
-                  }
-                },
-                "force": "on"
-              }
+              { "id": "rule-dot-path", "condition": { "account.id": { "$inGroup": "nested-id" } }, "force": "on" }
             ]
           },
           "missing": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-missing",
-                "condition": {
-                  "id": {
-                    "$inGroup": "missing"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-missing", "condition": { "id": { "$inGroup": "missing" } }, "force": "on" }]
           },
           "exclude-missing": {
             "defaultValue": "off",
             "rules": [
-              {
-                "id": "rule-exclude-missing",
-                "condition": {
-                  "id": {
-                    "$notInGroup": "missing"
-                  }
-                },
-                "force": "on"
-              }
+              { "id": "rule-exclude-missing", "condition": { "id": { "$notInGroup": "missing" } }, "force": "on" }
             ]
           },
-          "invalid": {
-            "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-invalid",
-                "force": "on"
-              }
-            ]
-          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
           "cycle": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-cycle",
-                "condition": {
-                  "__sgCycle__": "cycle-b"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-cycle", "condition": { "__sgCycle__": "cycle-b" }, "force": "on" }]
           },
           "parent": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-parent",
-                "condition": {
-                  "country": "US"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
           },
           "prerequisite-list": {
             "defaultValue": "off",
             "rules": [
               {
                 "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "value": {
-                        "$inGroup": "parent-value"
-                      }
-                    },
-                    "gate": true
-                  }
+                  { "id": "parent", "condition": { "value": { "$inGroup": "parent-value" } }, "gate": true }
                 ]
               },
-              {
-                "id": "rule-prerequisite-list",
-                "force": "on"
-              }
+              { "id": "rule-prerequisite-list", "force": "on" }
             ]
           },
           "prerequisite-condition": {
             "defaultValue": "off",
             "rules": [
-              {
-                "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "value": "on"
-                    },
-                    "gate": true
-                  }
-                ]
-              },
-              {
-                "id": "rule-prerequisite-condition",
-                "force": "on"
-              }
+              { "parentConditions": [{ "id": "parent", "condition": { "value": "on" }, "gate": true }] },
+              { "id": "rule-prerequisite-condition", "force": "on" }
             ]
           },
           "experiment": {
@@ -712,26 +272,11 @@
             "rules": [
               {
                 "id": "rule-experiment",
-                "condition": {
-                  "plan": "pro"
-                },
-                "variations": [
-                  "control",
-                  "treatment"
-                ],
+                "condition": { "plan": "pro" },
+                "variations": ["control", "treatment"],
                 "coverage": 1,
-                "weights": [
-                  0.5,
-                  0.5
-                ],
-                "meta": [
-                  {
-                    "key": "0"
-                  },
-                  {
-                    "key": "1"
-                  }
-                ],
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
                 "key": "saved-group-test",
                 "hashAttribute": "id"
               }
@@ -740,23 +285,11 @@
         },
         "dateUpdated": "2026-09-24T15:16:39.461Z",
         "savedGroups": {
-          "beta": [
-            "u_1",
-            "u_2"
-          ],
-          "numbers": [
-            21,
-            30
-          ],
-          "tags": [
-            "vip"
-          ],
-          "nested-id": [
-            "a_1"
-          ],
-          "parent-value": [
-            "on"
-          ]
+          "beta": ["u_1", "u_2"],
+          "numbers": [21, 30],
+          "tags": ["vip"],
+          "nested-id": ["a_1"],
+          "parent-value": ["on"]
         }
       }
     },
@@ -775,65 +308,22 @@
         "features": {
           "list": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-list",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "beta"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-list", "condition": { "$savedGroup": { "id": "beta" } }, "force": "on" }]
           },
           "condition": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-condition",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "pro"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-condition", "condition": { "$savedGroup": { "id": "pro" } }, "force": "on" }]
           },
           "nested": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-nested",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "nested"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-nested", "condition": { "$savedGroup": { "id": "nested" } }, "force": "on" }]
           },
           "all": {
             "defaultValue": "off",
             "rules": [
               {
                 "id": "rule-all",
-                "condition": {
-                  "$and": [
-                    {
-                      "$savedGroup": {
-                        "id": "beta"
-                      }
-                    },
-                    {
-                      "$savedGroup": {
-                        "id": "pro"
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$and": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] },
                 "force": "on"
               }
             ]
@@ -843,20 +333,7 @@
             "rules": [
               {
                 "id": "rule-any",
-                "condition": {
-                  "$or": [
-                    {
-                      "$savedGroup": {
-                        "id": "beta"
-                      }
-                    },
-                    {
-                      "$savedGroup": {
-                        "id": "pro"
-                      }
-                    }
-                  ]
-                },
+                "condition": { "$or": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] },
                 "force": "on"
               }
             ]
@@ -868,20 +345,8 @@
                 "id": "rule-none",
                 "condition": {
                   "$and": [
-                    {
-                      "$not": {
-                        "$savedGroup": {
-                          "id": "beta"
-                        }
-                      }
-                    },
-                    {
-                      "$not": {
-                        "$savedGroup": {
-                          "id": "pro"
-                        }
-                      }
-                    }
+                    { "$not": { "$savedGroup": { "id": "beta" } } },
+                    { "$not": { "$savedGroup": { "id": "pro" } } }
                   ]
                 },
                 "force": "on"
@@ -894,20 +359,7 @@
               {
                 "id": "rule-not-both",
                 "condition": {
-                  "$not": {
-                    "$and": [
-                      {
-                        "$savedGroup": {
-                          "id": "beta"
-                        }
-                      },
-                      {
-                        "$savedGroup": {
-                          "id": "pro"
-                        }
-                      }
-                    ]
-                  }
+                  "$not": { "$and": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] }
                 },
                 "force": "on"
               }
@@ -918,12 +370,7 @@
             "rules": [
               {
                 "id": "rule-override",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "beta",
-                    "attributeKey": "backup_id"
-                  }
-                },
+                "condition": { "$savedGroup": { "id": "beta", "attributeKey": "backup_id" } },
                 "force": "on"
               }
             ]
@@ -933,141 +380,51 @@
             "rules": [
               {
                 "id": "rule-exclude-override",
-                "condition": {
-                  "$not": {
-                    "$savedGroup": {
-                      "id": "beta",
-                      "attributeKey": "backup_id"
-                    }
-                  }
-                },
+                "condition": { "$not": { "$savedGroup": { "id": "beta", "attributeKey": "backup_id" } } },
                 "force": "on"
               }
             ]
           },
           "numeric": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-numeric",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "numbers"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-numeric", "condition": { "$savedGroup": { "id": "numbers" } }, "force": "on" }]
           },
           "array": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-array",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "tags"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-array", "condition": { "$savedGroup": { "id": "tags" } }, "force": "on" }]
           },
           "dot-path": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-dot-path",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "nested-id"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-dot-path", "condition": { "$savedGroup": { "id": "nested-id" } }, "force": "on" }]
           },
           "missing": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-missing",
-                "condition": {
-                  "__sgUnknown__": "missing"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-missing", "condition": { "__sgUnknown__": "missing" }, "force": "on" }]
           },
           "exclude-missing": {
             "defaultValue": "off",
             "rules": [
-              {
-                "id": "rule-exclude-missing",
-                "condition": {
-                  "$not": {
-                    "__sgUnknown__": "missing"
-                  }
-                },
-                "force": "on"
-              }
+              { "id": "rule-exclude-missing", "condition": { "$not": { "__sgUnknown__": "missing" } }, "force": "on" }
             ]
           },
-          "invalid": {
-            "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-invalid",
-                "force": "on"
-              }
-            ]
-          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
           "cycle": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-cycle",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "cycle-a"
-                  }
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-cycle", "condition": { "$savedGroup": { "id": "cycle-a" } }, "force": "on" }]
           },
           "parent": {
             "defaultValue": "off",
-            "rules": [
-              {
-                "id": "rule-parent",
-                "condition": {
-                  "country": "US"
-                },
-                "force": "on"
-              }
-            ]
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
           },
           "prerequisite-list": {
             "defaultValue": "off",
             "rules": [
               {
                 "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "$savedGroup": {
-                        "id": "parent-value"
-                      }
-                    },
-                    "gate": true
-                  }
+                  { "id": "parent", "condition": { "$savedGroup": { "id": "parent-value" } }, "gate": true }
                 ]
               },
-              {
-                "id": "rule-prerequisite-list",
-                "force": "on"
-              }
+              { "id": "rule-prerequisite-list", "force": "on" }
             ]
           },
           "prerequisite-condition": {
@@ -1075,21 +432,10 @@
             "rules": [
               {
                 "parentConditions": [
-                  {
-                    "id": "parent",
-                    "condition": {
-                      "$savedGroup": {
-                        "id": "parent-condition"
-                      }
-                    },
-                    "gate": true
-                  }
+                  { "id": "parent", "condition": { "$savedGroup": { "id": "parent-condition" } }, "gate": true }
                 ]
               },
-              {
-                "id": "rule-prerequisite-condition",
-                "force": "on"
-              }
+              { "id": "rule-prerequisite-condition", "force": "on" }
             ]
           },
           "experiment": {
@@ -1097,28 +443,11 @@
             "rules": [
               {
                 "id": "rule-experiment",
-                "condition": {
-                  "$savedGroup": {
-                    "id": "pro"
-                  }
-                },
-                "variations": [
-                  "control",
-                  "treatment"
-                ],
+                "condition": { "$savedGroup": { "id": "pro" } },
+                "variations": ["control", "treatment"],
                 "coverage": 1,
-                "weights": [
-                  0.5,
-                  0.5
-                ],
-                "meta": [
-                  {
-                    "key": "0"
-                  },
-                  {
-                    "key": "1"
-                  }
-                ],
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
                 "key": "saved-group-test",
                 "hashAttribute": "id"
               }
@@ -1127,91 +456,21 @@
         },
         "dateUpdated": "2026-09-24T15:16:39.467Z",
         "savedGroups": {
-          "beta": {
-            "type": "list",
-            "attributeKey": "id",
-            "values": [
-              "u_1",
-              "u_2"
-            ]
-          },
-          "numbers": {
-            "type": "list",
-            "attributeKey": "age",
-            "values": [
-              21,
-              30
-            ]
-          },
-          "tags": {
-            "type": "list",
-            "attributeKey": "tags",
-            "values": [
-              "vip"
-            ]
-          },
-          "nested-id": {
-            "type": "list",
-            "attributeKey": "account.id",
-            "values": [
-              "a_1"
-            ]
-          },
-          "parent-value": {
-            "type": "list",
-            "attributeKey": "value",
-            "values": [
-              "on"
-            ]
-          },
-          "pro": {
-            "type": "condition",
-            "condition": {
-              "plan": "pro"
-            }
-          },
-          "parent-condition": {
-            "type": "condition",
-            "condition": {
-              "value": "on"
-            }
-          },
+          "beta": { "type": "list", "attributeKey": "id", "values": ["u_1", "u_2"] },
+          "numbers": { "type": "list", "attributeKey": "age", "values": [21, 30] },
+          "tags": { "type": "list", "attributeKey": "tags", "values": ["vip"] },
+          "nested-id": { "type": "list", "attributeKey": "account.id", "values": ["a_1"] },
+          "parent-value": { "type": "list", "attributeKey": "value", "values": ["on"] },
+          "pro": { "type": "condition", "condition": { "plan": "pro" } },
+          "parent-condition": { "type": "condition", "condition": { "value": "on" } },
           "nested": {
             "type": "condition",
             "condition": {
-              "$and": [
-                {
-                  "country": "US"
-                },
-                {
-                  "$savedGroup": {
-                    "id": "pro"
-                  }
-                },
-                {
-                  "$savedGroup": {
-                    "id": "beta"
-                  }
-                }
-              ]
+              "$and": [{ "country": "US" }, { "$savedGroup": { "id": "pro" } }, { "$savedGroup": { "id": "beta" } }]
             }
           },
-          "cycle-a": {
-            "type": "condition",
-            "condition": {
-              "$savedGroup": {
-                "id": "cycle-b"
-              }
-            }
-          },
-          "cycle-b": {
-            "type": "condition",
-            "condition": {
-              "$savedGroup": {
-                "id": "cycle-a"
-              }
-            }
-          }
+          "cycle-a": { "type": "condition", "condition": { "$savedGroup": { "id": "cycle-b" } } },
+          "cycle-b": { "type": "condition", "condition": { "$savedGroup": { "id": "cycle-a" } } }
         }
       }
     },
@@ -1233,141 +492,28 @@
         "plan": "pro",
         "country": "US",
         "age": 21,
-        "tags": [
-          "basic",
-          "vip"
-        ],
-        "account": {
-          "id": "a_1"
-        }
+        "tags": ["basic", "vip"],
+        "account": { "id": "a_1" }
       },
       "features": {
-        "list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "numeric": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "prerequisite-list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "all": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
         "prerequisite-condition": {
           "value": "on",
           "on": true,
@@ -1380,12 +526,7 @@
           "on": true,
           "off": false,
           "source": "experiment",
-          "experimentResult": {
-            "value": "treatment",
-            "variationId": 1,
-            "inExperiment": true,
-            "hashUsed": true
-          }
+          "experimentResult": { "value": "treatment", "variationId": 1, "inExperiment": true, "hashUsed": true }
         }
       }
     },
@@ -1396,133 +537,27 @@
         "plan": "free",
         "country": "CA",
         "age": 22,
-        "tags": [
-          "basic"
-        ],
-        "account": {
-          "id": "a_2"
-        }
+        "tags": ["basic"],
+        "account": { "id": "a_2" }
       },
       "features": {
-        "list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "numeric": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
         "prerequisite-list": {
           "value": null,
           "on": false,
@@ -1537,13 +572,7 @@
           "source": "prerequisite",
           "experimentResult": null
         },
-        "experiment": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        }
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
       }
     },
     {
@@ -1557,62 +586,14 @@
         "account": "a_1"
       },
       "features": {
-        "list": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
         "exclude-override": {
           "value": "off",
           "on": true,
@@ -1620,69 +601,15 @@
           "source": "defaultValue",
           "experimentResult": null
         },
-        "numeric": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "prerequisite-list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
         "prerequisite-condition": {
           "value": "on",
           "on": true,
@@ -1695,12 +622,7 @@
           "on": true,
           "off": false,
           "source": "experiment",
-          "experimentResult": {
-            "value": "control",
-            "variationId": 0,
-            "inExperiment": true,
-            "hashUsed": true
-          }
+          "experimentResult": { "value": "control", "variationId": 0, "inExperiment": true, "hashUsed": true }
         }
       }
     },
@@ -1711,133 +633,27 @@
         "plan": "free",
         "country": "CA",
         "age": "21",
-        "tags": [
-          "vip"
-        ],
-        "account": {
-          "id": "a_1"
-        }
+        "tags": ["vip"],
+        "account": { "id": "a_1" }
       },
       "features": {
-        "list": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "numeric": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "none": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
         "prerequisite-list": {
           "value": null,
           "on": false,
@@ -1852,81 +668,20 @@
           "source": "prerequisite",
           "experimentResult": null
         },
-        "experiment": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        }
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
       }
     },
     {
-      "attributes": {
-        "id": "u_2",
-        "backup_id": "u_2",
-        "plan": "pro",
-        "country": "US",
-        "age": 30,
-        "tags": "vip"
-      },
+      "attributes": { "id": "u_2", "backup_id": "u_2", "plan": "pro", "country": "US", "age": 30, "tags": "vip" },
       "features": {
-        "list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "all": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
         "exclude-override": {
           "value": "off",
           "on": true,
@@ -1934,69 +689,15 @@
           "source": "defaultValue",
           "experimentResult": null
         },
-        "numeric": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "prerequisite-list": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
         "prerequisite-condition": {
           "value": "on",
           "on": true,
@@ -2009,137 +710,30 @@
           "on": true,
           "off": false,
           "source": "experiment",
-          "experimentResult": {
-            "value": "control",
-            "variationId": 0,
-            "inExperiment": true,
-            "hashUsed": true
-          }
+          "experimentResult": { "value": "control", "variationId": 0, "inExperiment": true, "hashUsed": true }
         }
       }
     },
     {
       "attributes": {},
       "features": {
-        "list": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "condition": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "nested": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "all": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "any": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "none": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "not-both": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "override": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-override": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "numeric": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "array": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "dot-path": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "missing": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "exclude-missing": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "invalid": {
-          "value": "on",
-          "on": true,
-          "off": false,
-          "source": "force",
-          "experimentResult": null
-        },
-        "cycle": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
-        "parent": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        },
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "none": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
         "prerequisite-list": {
           "value": null,
           "on": false,
@@ -2154,13 +748,7 @@
           "source": "prerequisite",
           "experimentResult": null
         },
-        "experiment": {
-          "value": "off",
-          "on": true,
-          "off": false,
-          "source": "defaultValue",
-          "experimentResult": null
-        }
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
       }
     }
   ],
