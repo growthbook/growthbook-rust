@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use growthbook_rust::cache::{FeatureCache, InMemoryCache};
 use growthbook_rust::client::{GrowthBookClient, GrowthBookClientBuilder, GrowthBookClientTrait};
-use growthbook_rust::model_public::GrowthBookAttribute;
+use growthbook_rust::dto::GrowthBookResponse;
+use growthbook_rust::growthbook::GrowthBook;
+use growthbook_rust::model_public::{FeatureResult, GrowthBookAttribute, SavedGroup};
 use serde_json::{json, Value};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -46,10 +48,19 @@ fn compare(
     name: &str,
     mismatches: &mut Vec<String>,
 ) {
+    compare_results(|key, attributes| client.feature_result(key, Some(attributes)), fixtures, name, mismatches);
+}
+
+fn compare_results(
+    evaluate: impl Fn(&str, Vec<GrowthBookAttribute>) -> FeatureResult,
+    fixtures: &Value,
+    name: &str,
+    mismatches: &mut Vec<String>,
+) {
     for (index, evaluation) in fixtures["evaluations"].as_array().expect("evaluations").iter().enumerate() {
         let attributes = GrowthBookAttribute::from(evaluation["attributes"].clone()).expect("user attributes");
         for (key, expected) in evaluation["features"].as_object().expect("feature results") {
-            let result = client.feature_result(key, Some(attributes.clone()));
+            let result = evaluate(key, attributes.clone());
             let experiment = result.experiment_result.map(|result| {
                 json!({
                     "value": result.value,
@@ -67,6 +78,62 @@ fn compare(
             }
         }
     }
+}
+
+#[test]
+fn server_payloads_evaluate_synchronously_without_a_runtime() {
+    let fixtures = fixtures();
+    let mut mismatches = Vec::new();
+    for entry in fixtures["payloads"].as_array().expect("payloads") {
+        if entry["name"].as_str().expect("format").ends_with("-encrypted") {
+            continue;
+        }
+        let response: GrowthBookResponse = serde_json::from_value(entry["payload"].clone()).expect("response");
+        let gb = GrowthBook {
+            features: response.features.unwrap_or_default(),
+            forced_variations: response.forced_variations,
+            attributes: None,
+            sticky_bucket_service: None,
+            saved_groups: response
+                .saved_groups
+                .as_ref()
+                .and_then(Value::as_object)
+                .map(|groups| groups.iter().map(|(key, value)| (key.clone(), SavedGroup::from(value))).collect())
+                .unwrap_or_default(),
+        };
+        compare_results(|key, attributes| gb.check(key, &Some(attributes)), &fixtures, entry["name"].as_str().unwrap(), &mut mismatches);
+    }
+    assert_parity(&mismatches);
+}
+
+#[test]
+fn client_evaluates_after_setup_runtime_is_dropped() {
+    let fixtures = fixtures();
+    let runtime = tokio::runtime::Runtime::new().expect("runtime");
+    let clients: Vec<_> = fixtures["payloads"]
+        .as_array()
+        .expect("payloads")
+        .iter()
+        .filter(|entry| !entry["name"].as_str().expect("format").ends_with("-encrypted"))
+        .map(|entry| {
+            let client = runtime
+                .block_on(
+                    GrowthBookClientBuilder::new()
+                        .features_json(entry["payload"]["features"].clone())
+                        .expect("features")
+                        .saved_groups(entry["payload"]["savedGroups"].clone())
+                        .build(),
+                )
+                .expect("client");
+            (entry["name"].as_str().unwrap(), client)
+        })
+        .collect();
+    drop(runtime);
+    let mut mismatches = Vec::new();
+    for (name, client) in clients {
+        compare(&client, &fixtures, name, &mut mismatches);
+    }
+    assert_parity(&mismatches);
 }
 
 fn assert_parity(mismatches: &[String]) {

@@ -118,6 +118,50 @@ make test FILTER=is_on  # Watch tests matching a name
 Use `cargo test --locked` for the full CI test command, including doc tests.
 Add a regression test with a bug fix that fails before the fix and passes after.
 
+### Synchronous evaluation and async loading
+
+This crate has one SDK implementation. `GrowthBook::check` and the client
+methods `feature_result`, `is_on`, and `is_off` are synchronous. Client `build`,
+`refresh`, and `try_refresh` are async; network loading and automatic refresh
+use Tokio. There is no separate blocking HTTP client.
+
+Evaluation does not require a running Tokio runtime after setup. The server
+payload tests cover direct synchronous evaluation without a runtime, client
+evaluation after its setup runtime is dropped, and async loading/refresh:
+
+```sh
+cargo test --locked --test server_saved_group_payloads
+```
+
+### Performance benchmarks
+
+Run the benchmark harness in release mode; it uses the existing dependencies:
+
+```sh
+cargo bench --locked --bench payload_evaluation > /tmp/growthbook-benchmark.jsonl
+```
+
+It measures JSON decoding, offline client loading, cached refresh, localhost
+HTTP refresh, direct `GrowthBook::check`, and client `feature_result`. Workloads
+include server-generated payloads and synthetic payloads with 100 or 1,000
+background features plus one targeted feature, and lists of 1,000 or 10,000
+members. Synthetic evaluations target the last list member to exercise a full
+membership scan. Setup and fixture construction are outside the timed sections;
+allocations, cloning, and dropping the operation's results are included.
+
+`BENCH_FILTER` selects workload names (for example, `server-referencesV2`).
+`BENCH_SAMPLES` and `BENCH_SAMPLE_MS` control sampling (defaults: 9 samples of
+approximately 40 ms each, after calibration). Each JSON result includes raw
+sample timings and an error count; results with errors are not valid latency
+comparisons. `BENCH_V2=0` limits the harness to paths supported before the saved
+group v2 change, including plaintext v1 and encrypted inline features.
+
+For comparisons, use the same harness and fixtures in both revisions, compile
+before measuring, and alternate multiple runs on the same idle machine. Do not
+compare debug builds or run compilations concurrently with measurements.
+Local HTTP results include mock-server and scheduling overhead, not production
+network latency. These measurements are observational, not CI timing gates.
+
 ### Conformance corpus
 
 `tests/all_cases.json` contains shared SDK conformance cases used by the Rust
