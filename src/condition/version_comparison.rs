@@ -69,6 +69,8 @@ fn evaluate(
 fn normalize(value: &GrowthBookAttributeValue) -> String {
     let version = match value {
         GrowthBookAttributeValue::String(s) if !s.is_empty() => s.clone(),
+        // JavaScript stringifies both numeric zero signs as "0".
+        GrowthBookAttributeValue::Float(n) if *n == 0.0 => String::from("0"),
         GrowthBookAttributeValue::Int(_) | GrowthBookAttributeValue::Float(_) => value.to_string(),
         _ => String::from("0"),
     };

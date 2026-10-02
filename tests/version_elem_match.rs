@@ -37,6 +37,18 @@ fn version_operators_compare_array_members_and_not_negates_the_match() {
 }
 
 #[test]
+fn numeric_negative_zero_compares_as_zero() {
+    for (operator, expected) in [("$vgt", false), ("$vgte", true), ("$vlt", false), ("$vlte", true), ("$veq", true), ("$vne", false)] {
+        for (attribute, operand) in [(json!(-0.0), json!("0")), (json!("0"), json!(-0.0))] {
+            let condition = json!({operator: operand});
+            assert_eq!(evaluate(json!({"tags": condition.clone()}), attribute.clone()), expected, "{operator}: {attribute}");
+            assert_eq!(evaluate(json!({"tags": {"$elemMatch": condition}}), json!([attribute])), expected, "array {operator}");
+        }
+    }
+    assert!(!evaluate(json!({"tags": {"$veq": "0"}}), json!("-0")));
+}
+
+#[test]
 fn all_version_constraints_must_match_the_same_member() {
     let condition = json!({"tags": {"$elemMatch": {"$vgt": "1.0.0", "$vlt": "2.0.0"}}});
     assert!(!evaluate(condition.clone(), json!(["0.9.0", "2.1.0"])));
