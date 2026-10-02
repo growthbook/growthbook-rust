@@ -21,7 +21,7 @@ impl ConditionsMatchesAttributes for Vec<GrowthBookAttribute> {
         &self,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        self.iter().all(|it| verify(None, it, ctx, false))
+        !ctx.work_limit_exceeded() && self.iter().all(|it| verify(None, it, ctx, false)) && !ctx.work_limit_exceeded()
     }
 }
 
@@ -31,6 +31,9 @@ fn verify(
     ctx: &ConditionEvalContext,
     array_size: bool,
 ) -> bool {
+    if ctx.work_limit_exceeded() {
+        return false;
+    }
     match feature_attribute.key.as_str() {
         "$savedGroup" if parent_attribute.is_none() => saved_group(&feature_attribute.value, ctx),
         "$savedGroup" | "$savedGroups" => false,

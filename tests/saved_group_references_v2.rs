@@ -229,6 +229,68 @@ fn group_chain(references: usize) -> Value {
     Value::Object(groups)
 }
 
+fn repeated_group_references(levels: usize) -> Value {
+    let mut groups = serde_json::Map::new();
+    for level in 0..levels {
+        let next = json!({"$savedGroup": {"id": format!("repeated_{}", level + 1)}});
+        groups.insert(format!("repeated_{level}"), json!({"type": "condition", "condition": {"$and": [next.clone(), next]}}));
+    }
+    groups.insert(format!("repeated_{levels}"), json!({"type": "list", "attributeKey": "id", "values": ["u_1"]}));
+    Value::Object(groups)
+}
+
+#[tokio::test]
+async fn repeated_group_work_is_bounded_across_sibling_references() {
+    let reference = json!({"$savedGroup": {"id": "repeated_0"}});
+    let attributes = json!({"id": "u_1"});
+    assert!(evaluate(reference.clone(), attributes.clone(), repeated_group_references(11)).await);
+    for levels in [12, 24] {
+        assert!(!evaluate(reference.clone(), attributes.clone(), repeated_group_references(levels)).await);
+    }
+}
+
+#[tokio::test]
+async fn group_work_exhaustion_cannot_match_through_negation_or_fallback() {
+    let reference = json!({"$savedGroup": {"id": "repeated_0"}});
+    for condition in [json!({"$not": reference.clone()}), json!({"$nor": [reference.clone()]}), json!({"$or": [reference, {"id": "u_1"}]})] {
+        assert!(!evaluate(condition.clone(), json!({"id": "u_1"}), repeated_group_references(12)).await, "{condition}");
+    }
+}
+
+#[tokio::test]
+async fn group_work_budget_is_shared_when_rebinding_array_attributes() {
+    let groups = json!({"leaf": {"type": "list", "attributeKey": "id", "values": ["u_1"]}});
+    let condition = json!({"$not": {"items": {"$elemMatch": {
+        "id": {"$exists": true}, "$savedGroup": {"id": "leaf"}
+    }}}});
+    for (count, expected) in [(4096, true), (4097, false)] {
+        let attributes = json!({"items": vec![json!({"id": "other"}); count]});
+        assert_eq!(evaluate(condition.clone(), attributes, groups.clone()).await, expected, "{count} references");
+    }
+}
+
+#[tokio::test]
+async fn group_work_budget_resets_between_checks_and_preserves_overrides() {
+    let mut groups = repeated_group_references(12);
+    groups["leaf"] = json!({"type": "list", "attributeKey": "id", "values": ["u_1"]});
+    let client = client(&json!({
+        "savedGroups": groups,
+        "features": {
+            "expensive": {"defaultValue": false, "rules": [{"condition": {"$savedGroup": {"id": "repeated_0"}}, "force": true}]},
+            "overrides": {"defaultValue": false, "rules": [{"condition": {"$and": [
+                {"$savedGroup": {"id": "leaf", "attributeKey": "first"}},
+                {"$not": {"$savedGroup": {"id": "leaf", "attributeKey": "second"}}}
+            ]}, "force": true}]}
+        }
+    }))
+    .await;
+    let attributes = GrowthBookAttribute::from(json!({"id": "u_1", "first": "u_1", "second": "other"})).unwrap();
+    for _ in 0..2 {
+        assert!(!client.is_on("expensive", Some(attributes.clone())));
+        assert!(client.is_on("overrides", Some(attributes.clone())));
+    }
+}
+
 #[tokio::test]
 async fn group_chains_are_bounded_without_restricting_siblings() {
     let reference = json!({"$savedGroup": {"id": "grp_0"}});

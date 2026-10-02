@@ -118,12 +118,19 @@ make test FILTER=is_on  # Watch tests matching a name
 Use `cargo test --locked` for the full CI test command, including doc tests.
 Add a regression test with a bug fix that fails before the fix and passes after.
 
-### Saved-group reference depth
+### Saved-group evaluation limits
 
 Saved-group resolution allows at most 128 references along one evaluation path.
 A reference beyond that limit evaluates to false, as a cyclic reference does.
 Sibling conditions have independent paths. This bounds recursion for long
 condition-group chains even when they contain no cycle.
+
+Each condition evaluation also allows at most 4,096 saved-group reference
+attempts in total, shared across sibling branches and nested array elements.
+Exceeding this work limit makes the whole condition false, including conditions
+that negate a group reference. A fresh condition evaluation gets a fresh budget.
+This prevents repeated references from multiplying work exponentially while
+preserving attribute overrides and cycle detection.
 
 ### Synchronous evaluation and async loading
 

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
@@ -11,6 +13,9 @@ pub type SavedGroups = HashMap<String, SavedGroup>;
 /// Bound recursive group resolution, including long chains without cycles.
 const MAX_SAVED_GROUP_DEPTH: usize = 128;
 
+/// Bound repeated references across sibling branches within one condition evaluation.
+const MAX_SAVED_GROUP_EVALUATIONS: usize = 4096;
+
 /// Everything condition evaluation needs beyond the condition itself: the
 /// attributes being evaluated plus the saved groups. Bundled into one context
 /// (rather than threaded as separate params) so new evaluation inputs can be
@@ -19,6 +24,8 @@ pub struct ConditionEvalContext<'a> {
     attributes: &'a [GrowthBookAttribute],
     saved_groups: &'a SavedGroups,
     visited: HashSet<String>,
+    /// Owned at the root and borrowed by nested contexts without allocating.
+    group_evaluations: Cow<'a, Cell<usize>>,
 }
 
 impl<'a> ConditionEvalContext<'a> {
@@ -30,6 +37,7 @@ impl<'a> ConditionEvalContext<'a> {
             attributes,
             saved_groups,
             visited: HashSet::new(),
+            group_evaluations: Cow::Owned(Cell::new(0)),
         }
     }
 
@@ -55,10 +63,16 @@ impl<'a> ConditionEvalContext<'a> {
     }
 
     /// Enter one branch of group resolution without marking sibling branches.
-    pub fn enter_group(
-        &self,
+    pub fn enter_group<'b>(
+        &'b self,
         group_id: &str,
-    ) -> Option<Self> {
+    ) -> Option<ConditionEvalContext<'b>> {
+        let evaluations = self.group_evaluations.get();
+        if evaluations >= MAX_SAVED_GROUP_EVALUATIONS {
+            self.group_evaluations.set(MAX_SAVED_GROUP_EVALUATIONS + 1);
+            return None;
+        }
+        self.group_evaluations.set(evaluations + 1);
         if self.visited.len() >= MAX_SAVED_GROUP_DEPTH {
             return None;
         }
@@ -66,11 +80,17 @@ impl<'a> ConditionEvalContext<'a> {
         if !visited.insert(group_id.to_owned()) {
             return None;
         }
-        Some(Self {
+        Some(ConditionEvalContext {
             attributes: self.attributes,
             saved_groups: self.saved_groups,
             visited,
+            group_evaluations: Cow::Borrowed(self.group_evaluations.as_ref()),
         })
+    }
+
+    /// Exhaustion invalidates the whole condition, including negated references.
+    pub fn work_limit_exceeded(&self) -> bool {
+        self.group_evaluations.get() > MAX_SAVED_GROUP_EVALUATIONS
     }
 
     /// Evaluate a nested value while retaining the current group-resolution path.
@@ -82,6 +102,7 @@ impl<'a> ConditionEvalContext<'a> {
             attributes,
             saved_groups: self.saved_groups,
             visited: self.visited.clone(),
+            group_evaluations: Cow::Borrowed(self.group_evaluations.as_ref()),
         }
     }
 }
