@@ -118,6 +118,13 @@ make test FILTER=is_on  # Watch tests matching a name
 Use `cargo test --locked` for the full CI test command, including doc tests.
 Add a regression test with a bug fix that fails before the fix and passes after.
 
+### Saved-group reference depth
+
+Saved-group resolution allows at most 128 references along one evaluation path.
+A reference beyond that limit evaluates to false, as a cyclic reference does.
+Sibling conditions have independent paths. This bounds recursion for long
+condition-group chains even when they contain no cycle.
+
 ### Synchronous evaluation and async loading
 
 This crate has one SDK implementation. `GrowthBook::check` and the client

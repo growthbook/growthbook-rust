@@ -98,7 +98,7 @@ fn string_evaluate(
             it => condition(&feature_value, &it.to_string()),
         }
     } else {
-        true
+        false
     }
 }
 
@@ -109,14 +109,12 @@ fn number_evaluate(
     array_size: bool,
     condition: fn(&f64, &f64) -> bool,
 ) -> bool {
-    if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-        if let (Some(feature_number), Some(user_numbers)) = (get_feature_number(feature_attribute), get_user_numbers(&user_value, array_size)) {
-            user_numbers.iter().any(|number| condition(&feature_number, number))
-        } else {
-            false
-        }
+    // JS getPath returns null for missing paths, which numeric comparisons coerce to zero.
+    let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+    if let (Some(feature_number), Some(user_numbers)) = (get_feature_number(feature_attribute), get_user_numbers(&user_value, array_size)) {
+        user_numbers.iter().any(|number| condition(&feature_number, number))
     } else {
-        true
+        false
     }
 }
 
@@ -134,13 +132,14 @@ fn get_user_numbers(
     array_size: bool,
 ) -> Option<Vec<f64>> {
     match user_value {
+        GrowthBookAttributeValue::Empty => Some(vec![0.0]),
         GrowthBookAttributeValue::Int(it) => Some(vec![*it as f64]),
         GrowthBookAttributeValue::Float(it) => Some(vec![*it]),
         GrowthBookAttributeValue::Array(it) => {
             if array_size {
                 Some(vec![it.len() as f64])
             } else {
-                Some(it.iter().filter(|item| item.is_number()).map(|item| item.as_f64().expect("Failed to convert to f64")).collect())
+                Some(it.iter().filter(|item| item.is_number()).filter_map(|item| item.as_f64()).collect())
             }
         },
         GrowthBookAttributeValue::String(string_number) => string_number.replace('.', "").parse::<f64>().ok().map(|it| vec![it]),

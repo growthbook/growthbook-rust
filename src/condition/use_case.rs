@@ -67,7 +67,7 @@ fn verify(
         "$notRegexi" => RegexComparison::not_matches_ignore_case(parent_attribute, feature_attribute, ctx),
         "$inGroup" => OperatorCondition::in_group(parent_attribute, feature_attribute, ctx),
         "$notInGroup" => OperatorCondition::not_in_group(parent_attribute, feature_attribute, ctx),
-        key if key.starts_with('$') && (parent_attribute.is_some() || ctx.find_value(key).is_none()) => false,
+        key if key.starts_with('$') && parent_attribute.is_some() => false,
         _ => non_operator_or_condition(parent_attribute, feature_attribute, ctx),
     }
 }
@@ -155,7 +155,7 @@ fn string_non_operator(
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
 ) -> bool {
-    if feature_attribute.key.starts_with('$') {
+    if feature_attribute.key.starts_with('$') && parent_attribute.is_some() {
         false
     } else {
         OperatorCondition::eq(parent_attribute, feature_attribute, ctx, verify)

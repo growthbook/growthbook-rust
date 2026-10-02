@@ -162,7 +162,7 @@ async fn group_references_are_top_level_only_and_unknown_operators_fail_closed()
         json!({"$savedGroups": null}),
         json!({"$savedGroups": []}),
         json!({"$savedGroups": {}}),
-        json!({"$future": null}),
+        json!({"id": {"$future": null}}),
     ] {
         assert!(!evaluate(condition.clone(), json!({"id": "u_1"}), groups.clone()).await, "{condition}");
     }
@@ -220,14 +220,25 @@ async fn nested_groups_evaluate_against_each_array_element() {
     assert!(evaluate(json!({"items": {"$all": [{"$elemMatch": element}]}}), json!({"items": [[{"plan": "pro"}]]}), groups).await);
 }
 
-#[tokio::test]
-async fn group_chains_have_no_fixed_depth_limit() {
+fn group_chain(references: usize) -> Value {
     let mut groups = serde_json::Map::new();
-    for i in 0..100 {
+    for i in 0..references - 1 {
         groups.insert(format!("grp_{i}"), json!({"type": "condition", "condition": {"$savedGroup": {"id": format!("grp_{}", i + 1)}}}));
     }
-    groups.insert("grp_100".into(), json!({"type": "list", "attributeKey": "id", "values": ["u_1"]}));
-    assert!(evaluate(json!({"$savedGroup": {"id": "grp_0"}}), json!({"id": "u_1"}), Value::Object(groups)).await);
+    groups.insert(format!("grp_{}", references - 1), json!({"type": "list", "attributeKey": "id", "values": ["u_1"]}));
+    Value::Object(groups)
+}
+
+#[tokio::test]
+async fn group_chains_are_bounded_without_restricting_siblings() {
+    let reference = json!({"$savedGroup": {"id": "grp_0"}});
+    for depth in [1, 101, 128] {
+        assert!(evaluate(reference.clone(), json!({"id": "u_1"}), group_chain(depth)).await, "depth {depth}");
+    }
+    for depth in [129, 2000] {
+        assert!(!evaluate(reference.clone(), json!({"id": "u_1"}), group_chain(depth)).await, "depth {depth}");
+    }
+    assert!(evaluate(json!({"$and": [reference.clone(), reference]}), json!({"id": "u_1"}), group_chain(128)).await);
 }
 
 #[tokio::test]

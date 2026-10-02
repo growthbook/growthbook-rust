@@ -8,6 +8,9 @@ use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGr
 /// Legacy lists and typed saved groups, indexed by group id.
 pub type SavedGroups = HashMap<String, SavedGroup>;
 
+/// Bound recursive group resolution, including long chains without cycles.
+const MAX_SAVED_GROUP_DEPTH: usize = 128;
+
 /// Everything condition evaluation needs beyond the condition itself: the
 /// attributes being evaluated plus the saved groups. Bundled into one context
 /// (rather than threaded as separate params) so new evaluation inputs can be
@@ -56,6 +59,9 @@ impl<'a> ConditionEvalContext<'a> {
         &self,
         group_id: &str,
     ) -> Option<Self> {
+        if self.visited.len() >= MAX_SAVED_GROUP_DEPTH {
+            return None;
+        }
         let mut visited = self.visited.clone();
         if !visited.insert(group_id.to_owned()) {
             return None;
