@@ -1,0 +1,20 @@
+name: Upstream corpus freshness
+
+on:
+  schedule:
+    - cron: '23 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upstream_corpus:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Check for newer JS SDK cases
+      run: python3 tests/scripts/check_corpus_freshness.py --upstream-main
