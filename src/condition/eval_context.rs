@@ -33,6 +33,17 @@ impl<'a> ConditionEvalContext<'a> {
     ) -> Option<&[GrowthBookAttributeValue]> {
         self.saved_groups.get(group_id).map(|members| members.as_slice())
     }
+
+    /// Evaluate a nested value while retaining access to saved groups.
+    pub fn with_attributes<'b>(
+        &'b self,
+        attributes: &'b [GrowthBookAttribute],
+    ) -> ConditionEvalContext<'b> {
+        ConditionEvalContext {
+            attributes,
+            saved_groups: self.saved_groups,
+        }
+    }
 }
 
 // Lets every existing `ctx.find_value(key)` call site keep working after the

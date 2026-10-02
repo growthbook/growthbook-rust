@@ -3,7 +3,9 @@
 
 Rust additions and execution exclusions never suppress missing or changed base
 cases. Tests use only checked-in files; this freshness check optionally fetches
-newer upstream data. A fetch failure warns and skips, as in the existing CI job.
+newer upstream data. By default, verify the exact source.json commit; use
+--upstream-main for the separate scheduled freshness check. Fetch failures fail
+the check rather than reporting an unverified snapshot as passing.
 """
 
 from __future__ import annotations
@@ -12,8 +14,8 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
-import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -21,7 +23,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_CASES = REPO_ROOT / "tests" / "cases" / "cases.json"
 SOURCE = LOCAL_CASES.with_name("source.json")
-DEFAULT_JS_URL = "https://raw.githubusercontent.com/growthbook/growthbook/main/packages/sdk-js/test/cases.json"
 
 
 def _load_local_cases() -> dict:
@@ -35,12 +36,24 @@ def _load_local_cases() -> dict:
     return cases
 
 
-def _fetch_js_cases(source: str) -> dict:
+def _source_url(source: dict, upstream_main: bool = False) -> str:
+    commit = source["commit"]
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("source.json must pin a full upstream commit SHA")
+    ref = "main" if upstream_main else commit
+    return f"https://raw.githubusercontent.com/{source['repository']}/{ref}/{source['path']}"
+
+
+def _fetch_js_cases(source: str, expected_sha256: str | None = None) -> dict:
     if source.startswith(("http://", "https://")):
         request = urllib.request.Request(source, headers={"User-Agent": "growthbook-rust-corpus-check"})
         with urllib.request.urlopen(request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8"))
-    return json.loads(Path(source).read_text())
+            raw = response.read()
+    else:
+        raw = Path(source).read_bytes()
+    if expected_sha256 and hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise ValueError("pinned upstream file does not match the checksum in source.json")
+    return json.loads(raw)
 
 
 def _suites(corpus: dict, prefix: str = "") -> dict[str, list]:
@@ -80,19 +93,26 @@ def _diff(upstream: dict, local: dict) -> tuple[dict, dict, dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--js-source", default=os.environ.get("GB_JS_CASES_URL", DEFAULT_JS_URL), help="Upstream URL or local path; defaults to SDK JS main")
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--js-source", default=os.environ.get("GB_JS_CASES_URL"), help="Compare with an explicit URL or local path instead of the pinned source")
+    sources.add_argument("--upstream-main", action="store_true", help="Check for newer upstream cases (scheduled maintenance, not PR validation)")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     args = parser.parse_args(argv)
+    if args.upstream_main and args.js_source:
+        parser.error("--upstream-main cannot be combined with GB_JS_CASES_URL")
     try:
         local = _load_local_cases()
+        source = json.loads(SOURCE.read_text())
+        js_source = args.js_source or _source_url(source, args.upstream_main)
+        pinned = not args.js_source and not args.upstream_main
     except (OSError, ValueError, KeyError) as error:
         print(f"corpus check error: {error}", file=sys.stderr)
         return 2
     try:
-        upstream = _fetch_js_cases(args.js_source)
+        upstream = _fetch_js_cases(js_source, expected_sha256=source["sha256"] if pinned else None)
     except (OSError, ValueError) as error:
-        print(f"WARNING: corpus freshness check skipped — could not fetch JS cases: {error}")
-        return 0
+        print(f"corpus check error: could not verify JS cases: {error}", file=sys.stderr)
+        return 2
     try:
         missing, drift, extras = _diff(upstream, local)
     except (ValueError, AttributeError) as error:
@@ -103,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"js_specVersion": upstream.get("specVersion"), "rust_specVersion": local.get("specVersion"), "missing_actionable": missing, "drift_actionable": drift, "extras": extras}, indent=2))
     else:
         print("=== Corpus freshness check (vendored cases.json vs JS SDK) ===")
+        print(f"  Source: {js_source}")
         print(f"  JS specVersion: {upstream.get('specVersion')}")
         print(f"  Vendored specVersion: {local.get('specVersion')}")
         if upstream.get("specVersion") != local.get("specVersion"):
