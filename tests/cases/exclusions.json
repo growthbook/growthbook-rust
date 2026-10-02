@@ -1,7 +1,6 @@
 {
   "suites": {
-    "contextualBandit": "Contextual bandits are not supported by the Rust SDK.",
-    "savedGroupReferencesV2": "Saved group references v2 are implemented separately in PR #32."
+    "contextualBandit": "Contextual bandits are not supported by the Rust SDK."
   },
   "cases": {
     "feature": {

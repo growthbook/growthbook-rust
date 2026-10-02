@@ -1,0 +1,760 @@
+{
+  "serverCommit": "023c21040b8878650f0e2cf0eb7ca44ed4b6d2f1",
+  "decryptionKey": "MDEyMzQ1Njc4OWFiY2RlZg==",
+  "payloads": [
+    {
+      "name": "inline",
+      "payload": {
+        "features": {
+          "list": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-list", "condition": { "id": { "$in": ["u_1", "u_2"] } }, "force": "on" }]
+          },
+          "condition": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-condition", "condition": { "plan": "pro" }, "force": "on" }]
+          },
+          "nested": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-nested",
+                "condition": { "$and": [{ "country": "US" }, { "plan": "pro" }, { "id": { "$in": ["u_1", "u_2"] } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "all": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-all",
+                "condition": { "$and": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] },
+                "force": "on"
+              }
+            ]
+          },
+          "any": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-any",
+                "condition": { "$or": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] },
+                "force": "on"
+              }
+            ]
+          },
+          "none": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-none",
+                "condition": { "$and": [{ "id": { "$nin": ["u_1", "u_2"] } }, { "$not": { "plan": "pro" } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "not-both": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-not-both",
+                "condition": { "$not": { "$and": [{ "id": { "$in": ["u_1", "u_2"] } }, { "plan": "pro" }] } },
+                "force": "on"
+              }
+            ]
+          },
+          "override": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-override", "condition": { "backup_id": { "$in": ["u_1", "u_2"] } }, "force": "on" }]
+          },
+          "exclude-override": {
+            "defaultValue": "off",
+            "rules": [
+              { "id": "rule-exclude-override", "condition": { "backup_id": { "$nin": ["u_1", "u_2"] } }, "force": "on" }
+            ]
+          },
+          "numeric": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-numeric", "condition": { "age": { "$in": [21, 30] } }, "force": "on" }]
+          },
+          "array": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-array", "condition": { "tags": { "$in": ["vip"] } }, "force": "on" }]
+          },
+          "dot-path": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-dot-path", "condition": { "account.id": { "$in": ["a_1"] } }, "force": "on" }]
+          },
+          "missing": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-missing", "condition": { "id": { "$in": [] } }, "force": "on" }]
+          },
+          "exclude-missing": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-exclude-missing", "condition": { "id": { "$nin": [] } }, "force": "on" }]
+          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
+          "cycle": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-cycle", "condition": { "__sgCycle__": "cycle-b" }, "force": "on" }]
+          },
+          "parent": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
+          },
+          "prerequisite-list": {
+            "defaultValue": "off",
+            "rules": [
+              { "parentConditions": [{ "id": "parent", "condition": { "value": { "$in": ["on"] } }, "gate": true }] },
+              { "id": "rule-prerequisite-list", "force": "on" }
+            ]
+          },
+          "prerequisite-condition": {
+            "defaultValue": "off",
+            "rules": [
+              { "parentConditions": [{ "id": "parent", "condition": { "value": "on" }, "gate": true }] },
+              { "id": "rule-prerequisite-condition", "force": "on" }
+            ]
+          },
+          "experiment": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-experiment",
+                "condition": { "plan": "pro" },
+                "variations": ["control", "treatment"],
+                "coverage": 1,
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
+                "key": "saved-group-test",
+                "hashAttribute": "id"
+              }
+            ]
+          }
+        },
+        "dateUpdated": "2026-09-24T15:16:39.447Z"
+      }
+    },
+    {
+      "name": "inline-encrypted",
+      "payload": {
+        "features": {},
+        "dateUpdated": "2026-09-24T15:16:39.450Z",
+        "encryptedFeatures": "A1++qpr85Ki410LyoIMsuQ==.dcDct4CBKCcBuPhX0DAuoWCiuy/W1iBau8N65G/LnO/xIfntQDYxDEmKE1KWvwiea9cisCP12XW6TnWmpdh2Ik/Xp/ejjXNmuUnxh73QdNLV5AUZRX+j+9hIcSm61fIJDtJj1ueI1WB16njMqUjwm+AwEHwNyyf6Ks1XPsxVb69Qx1pKvTuQKKG2U5ouE+GfROTCdAXCMAdS2t9yjKgOB+zPCL0zCfSjicJDK+KC8ZMzWlos3wMks2EHpQDZThGQBbj2MA8NmYvt0fmaxTQLPZRRDrP0Viyn22IQrjn1ERiHehqAb6CRJfViW6bwAxEfsACavkJeCKdXlDG2aKs3GpBcfymZlAAN+fRGlk3lBrwvBypBcDUTt9Dml/XAgj4LS+vTZmso9KzsuB8MHaeWkdDAcLorKIfkIPro2K0z/bCp7tb6O6Fm5C3B9kDz1xdUFuhfvNa8lf2qGQwdxK1UKYK6sNxKERQQ5P+shCkQziXeWuA6kEfsmnVkOI+JR2UOBbQPcS0AgxVPLhAdZkntummI16CKHSci9m1ZKMet6GzRzugcBQIfNaO3YpV5B8WASrxQTgSHOblxs88nv5z8rXVxEv2Jx2yHu0ViffMhi+7Qdepd5e5LORwVlX6386sLF1MagdUB9gY07ZPtOk39iaDxm5IYmpddYe4thOxNub26QA5u4BE5znuu7g4bVsdDths96m2/x0KNYlA+2QT7KW1j1RxPPMvLbbswo6Il+J9kF5T0qpvRdYXonKo59evem3Pu6Q3uSuw4InpMQsiGVLXSyvp+xfbBj8rGBOTXK7sE0tHyse6B+NXPNORmzKNs+0GH8TgOpJNxbWpyXygU4js23wr7v1tKayHWdt4MS41DPDCjAhhffCdyvAexp6uIIiRI0RM/A09j64YZKO5PpuozQVzvin3c3EXCEoAAxPPpIwcwV7zhXUdj4b8uFceMMm7Au8TBetV7tETI4sFgxpZVWdEFpnnMElr8MlZ3BbCfHOimdraWS+ch6asjaYAnnc7LGnesaYdjozHvJ0AzEPZ79hMG5WgvY/3khS7psrQdtwjDlXgjy0+ZPMhlbjzJAhcxQXYKoE6ZIqI8NCqIsTOfO+pZh2h68BFsArgMDFuCHFoV3BXXi3hAwx7cCyPHGKTflCGrmsay8Ml7Keh8vNHdC8VEm7UbhaWziTSTUDuF+O7yQWnZushzoGBGGgeMxqr0DYx3M/vjvdtd2TaQzZPdyKDAUi81Ys7bm2KuEvgkCn8gMWZRAK5HTGPJeOINdsoaBAsEpWwh7PHeG2ZecVKmfbsiZy2y3KU4Ir2EpVJVcK3tIGXettOvHTVjfAItnEBNY2eEkGgLoXA4pf/GJF2WIwAsk6aHA7IKXFExQ19ckbqWkDUbyT4a96mfDDrdTqXaJqJnX+Ek2iFsR9IZpifP+AN1K6YQErfiYRzuoM9OFMbUaeg0gjV0yP6WfNv7w7HQiVYoDGVMzOeCc0ZvnS3jD/UJA5Dm2V5ucBKD1nNW8XGvCfXakKZtJAYxnCL1XydO7hLPApYNExd12fAC4/AHrW8PkLBBB1cCW19438Lx9e1lJFmX2PgjhlelA5y3IwBKbxqwPIztEDeyTgRjwp/EeTMo7Uhr5Yk1Jneho+wHsKAi7U/vg1XSlgabNCIGJei/7W3olZsLyXyTgUPxUvIf32WI1LxkbGybTfqDwKpuMAh7uXRFR/m1ktXIbq3ZXlhS5QSWSa77TXgugPk0zgctMaq39dNQnKIJzQL7Co2L3Vt9bnGXNk8kysyPsJFpy8SrMguuhAg59jixmojQK3sd0xzths3ELcqTWAE8TolT/IioDrqXkZ9CNxp1vsLHfFZr83BwZp6bO6BHcdmJCLmrIOMbcHBk+hY35R2RDCE8+/PabdgLeN776JzH/0apRBDFWDLQ3ei0UTLYvKu+a8bnCQoEr5P4l0mQUvBWo+c3lbdWYB4ga9enBKYLw+9BiRECcHHYbgA2IigDADQWC2/BzwwIO3BsIskCQKU39z5CDTSj/DYJdF6sjhZZe2wOtlJCf6liaEAJPSSzhNsL9GOHsABCUMaqfGzI8fk8wcR8m11Di/LC8JV/LHerNodsbXKe2SL0A4HkFe/5tnjic+gibSsSqB4VS+HdoS5iCBlfmp2D6ynfQlY+Ws95nnKImBRRUK6eNvleTkdeTLbBsTrFWEodEH8vpIUFbazROz7VycM/foSbHBEwhv3l/YerO1ciNAfEwyj0iuQgMGkIp7I22Ms7/TmCzNEUHRqzIuZYkYEBs14LKthXm8wrYaZF2k3S8I1JJ1NwBw4Y4aQ+H52o5rew/qYNHlInHYu9ULIEPSxPG0HFlKF25DoRYZqNeYqvfNaA8cch5kpzyGSh5hQKfY0VM2WRFVStXPuiMzhasIRSuJcVssy9Ifv7hTj7M4AHZnYZ0d8E6MtRyICu6lERa6HgnEnYcXUe5GQlS8YIk7OkNnAaKNSgoM/NxDX8J4fslURBw24Knr49N/f8wAWCxSvmlFOvhPXiqUY5MhaIfi0VMh4IutoKJAiGaHun/HXRWIqlcU2K2imUIeuoryNcLnJvmDDRWVkg3O6lwejYjwl2lkgAhYyAtr1SYaW56ZRN/14VXQ/vcahKNnEKTgBzenPxJTFDHOkvFTSSXMkRcNtwHodhKM6/za3t5Z9fhqTTV6dxbOPYp3BLnNeZVrdHj7QtnoaWD3GdLddU59LXp9gSI7b9X7rsZkjZ0VdLwK2JioiiUuKemlcrKoivHO9l82Syor+yGdiA0ZwbPFF5A4/z1YOuxMwDqMFX4bmwgQGAJ6k5CJezvLbfcXJBI6LGKlQAZfDfhTPd6SYmzZNrRsfkPFmbhr3h1EEQEeBLDiz32dXrp0ReCL/+JOoDWM70cjq1xgYNlGLhcy9k/8fhTeWv/mNfmYeSoWwJkHg3EcA5ibyVKmcYBu63XHK+UR2ctNEhgcg4nUzs/wKt83AjEsbYgk14V/VraxKCMQgs3TgX3fm5aSYpk//3SJUV7IVa5eE8q9kbP2t3Kv53h+ttT8aAGZ/j6SrJpuzU1q1D5CrEA9iZsBr7eetfZ59tFkeHNwl2ZGLq9Bh9GVlmXL6RKsL2nvWBdyvM79gYiCF2VL94DlKg2jn8j5gsoiv00Ws+oaeyk8tkpritmlQi9UmCA3sdsqOanux7XcFcbSkaO/wJBI9K5mdMeG1/k2LsyPsdzUe6yHC1IdRJl8fuEDRDsHWnR/EnZPRi0c8xOzKGFmKLElH8/Bsxuk3aUXOeLXF0lHLp5MY+h8ZillWRqKjr/ESxeRCPId00vp0WGH6wRceFL2xuyZWpkV0JZk0TGhNF7zrjWJFC2pq9glTlR7y1AF9dVEnbjgUQacWL4fc/ove9atbimfgGvc0h3wBviM77jZ7niQzDGPER8XcNbpXBT8H/PB/uWOkjyl0y1XAFipTv7ZR9qP8zizI7TxaTOk4dAgW9cDIzB6uitlq572D4gU0JdTc2dgukfnAPoz2w/+BRzQhy9zsxJp3eEmSGK0Qrsac29mMymFNKrfUIEyN1hnLm1nx6AD/qV6iI0Fz9s9cOrD9Pivi38fypNC7AX1Gto0FCpBu0+FKTfQ7nDKTUIOpLY3nw6+Q372h5GMb3"
+      }
+    },
+    {
+      "name": "referencesV1",
+      "payload": {
+        "features": {
+          "list": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-list", "condition": { "id": { "$inGroup": "beta" } }, "force": "on" }]
+          },
+          "condition": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-condition", "condition": { "plan": "pro" }, "force": "on" }]
+          },
+          "nested": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-nested",
+                "condition": { "$and": [{ "country": "US" }, { "plan": "pro" }, { "id": { "$inGroup": "beta" } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "all": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-all",
+                "condition": { "$and": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] },
+                "force": "on"
+              }
+            ]
+          },
+          "any": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-any",
+                "condition": { "$or": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] },
+                "force": "on"
+              }
+            ]
+          },
+          "none": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-none",
+                "condition": { "$and": [{ "id": { "$notInGroup": "beta" } }, { "$not": { "plan": "pro" } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "not-both": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-not-both",
+                "condition": { "$not": { "$and": [{ "id": { "$inGroup": "beta" } }, { "plan": "pro" }] } },
+                "force": "on"
+              }
+            ]
+          },
+          "override": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-override", "condition": { "backup_id": { "$inGroup": "beta" } }, "force": "on" }]
+          },
+          "exclude-override": {
+            "defaultValue": "off",
+            "rules": [
+              { "id": "rule-exclude-override", "condition": { "backup_id": { "$notInGroup": "beta" } }, "force": "on" }
+            ]
+          },
+          "numeric": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-numeric", "condition": { "age": { "$inGroup": "numbers" } }, "force": "on" }]
+          },
+          "array": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-array", "condition": { "tags": { "$inGroup": "tags" } }, "force": "on" }]
+          },
+          "dot-path": {
+            "defaultValue": "off",
+            "rules": [
+              { "id": "rule-dot-path", "condition": { "account.id": { "$inGroup": "nested-id" } }, "force": "on" }
+            ]
+          },
+          "missing": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-missing", "condition": { "id": { "$inGroup": "missing" } }, "force": "on" }]
+          },
+          "exclude-missing": {
+            "defaultValue": "off",
+            "rules": [
+              { "id": "rule-exclude-missing", "condition": { "id": { "$notInGroup": "missing" } }, "force": "on" }
+            ]
+          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
+          "cycle": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-cycle", "condition": { "__sgCycle__": "cycle-b" }, "force": "on" }]
+          },
+          "parent": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
+          },
+          "prerequisite-list": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "parentConditions": [
+                  { "id": "parent", "condition": { "value": { "$inGroup": "parent-value" } }, "gate": true }
+                ]
+              },
+              { "id": "rule-prerequisite-list", "force": "on" }
+            ]
+          },
+          "prerequisite-condition": {
+            "defaultValue": "off",
+            "rules": [
+              { "parentConditions": [{ "id": "parent", "condition": { "value": "on" }, "gate": true }] },
+              { "id": "rule-prerequisite-condition", "force": "on" }
+            ]
+          },
+          "experiment": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-experiment",
+                "condition": { "plan": "pro" },
+                "variations": ["control", "treatment"],
+                "coverage": 1,
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
+                "key": "saved-group-test",
+                "hashAttribute": "id"
+              }
+            ]
+          }
+        },
+        "dateUpdated": "2026-09-24T15:16:39.461Z",
+        "savedGroups": {
+          "beta": ["u_1", "u_2"],
+          "numbers": [21, 30],
+          "tags": ["vip"],
+          "nested-id": ["a_1"],
+          "parent-value": ["on"]
+        }
+      }
+    },
+    {
+      "name": "referencesV1-encrypted",
+      "payload": {
+        "features": {},
+        "dateUpdated": "2026-09-24T15:16:39.463Z",
+        "encryptedFeatures": "Roz8m1ldYGbsQkK21btFyg==.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",
+        "encryptedSavedGroups": "qJM2OyWuR9nsLNAlRZiWFw==.fuC6LHRXTdfEX4bc2okY/sFOq0toZkpgruPv5BiWwQbts4yI6l8nKUf8LRANL39yBx+ZSlrY9yP3TV4J00DaYt0c4S3o6oIVSxmJLLvAKshdu9JjE7iU6i+YROf8UspSPdkcvOCpWtfW8w5h1Geteg=="
+      }
+    },
+    {
+      "name": "referencesV2",
+      "payload": {
+        "features": {
+          "list": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-list", "condition": { "$savedGroup": { "id": "beta" } }, "force": "on" }]
+          },
+          "condition": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-condition", "condition": { "$savedGroup": { "id": "pro" } }, "force": "on" }]
+          },
+          "nested": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-nested", "condition": { "$savedGroup": { "id": "nested" } }, "force": "on" }]
+          },
+          "all": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-all",
+                "condition": { "$and": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "any": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-any",
+                "condition": { "$or": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] },
+                "force": "on"
+              }
+            ]
+          },
+          "none": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-none",
+                "condition": {
+                  "$and": [
+                    { "$not": { "$savedGroup": { "id": "beta" } } },
+                    { "$not": { "$savedGroup": { "id": "pro" } } }
+                  ]
+                },
+                "force": "on"
+              }
+            ]
+          },
+          "not-both": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-not-both",
+                "condition": {
+                  "$not": { "$and": [{ "$savedGroup": { "id": "beta" } }, { "$savedGroup": { "id": "pro" } }] }
+                },
+                "force": "on"
+              }
+            ]
+          },
+          "override": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-override",
+                "condition": { "$savedGroup": { "id": "beta", "attributeKey": "backup_id" } },
+                "force": "on"
+              }
+            ]
+          },
+          "exclude-override": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-exclude-override",
+                "condition": { "$not": { "$savedGroup": { "id": "beta", "attributeKey": "backup_id" } } },
+                "force": "on"
+              }
+            ]
+          },
+          "numeric": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-numeric", "condition": { "$savedGroup": { "id": "numbers" } }, "force": "on" }]
+          },
+          "array": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-array", "condition": { "$savedGroup": { "id": "tags" } }, "force": "on" }]
+          },
+          "dot-path": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-dot-path", "condition": { "$savedGroup": { "id": "nested-id" } }, "force": "on" }]
+          },
+          "missing": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-missing", "condition": { "__sgUnknown__": "missing" }, "force": "on" }]
+          },
+          "exclude-missing": {
+            "defaultValue": "off",
+            "rules": [
+              { "id": "rule-exclude-missing", "condition": { "$not": { "__sgUnknown__": "missing" } }, "force": "on" }
+            ]
+          },
+          "invalid": { "defaultValue": "off", "rules": [{ "id": "rule-invalid", "force": "on" }] },
+          "cycle": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-cycle", "condition": { "$savedGroup": { "id": "cycle-a" } }, "force": "on" }]
+          },
+          "parent": {
+            "defaultValue": "off",
+            "rules": [{ "id": "rule-parent", "condition": { "country": "US" }, "force": "on" }]
+          },
+          "prerequisite-list": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "parentConditions": [
+                  { "id": "parent", "condition": { "$savedGroup": { "id": "parent-value" } }, "gate": true }
+                ]
+              },
+              { "id": "rule-prerequisite-list", "force": "on" }
+            ]
+          },
+          "prerequisite-condition": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "parentConditions": [
+                  { "id": "parent", "condition": { "$savedGroup": { "id": "parent-condition" } }, "gate": true }
+                ]
+              },
+              { "id": "rule-prerequisite-condition", "force": "on" }
+            ]
+          },
+          "experiment": {
+            "defaultValue": "off",
+            "rules": [
+              {
+                "id": "rule-experiment",
+                "condition": { "$savedGroup": { "id": "pro" } },
+                "variations": ["control", "treatment"],
+                "coverage": 1,
+                "weights": [0.5, 0.5],
+                "meta": [{ "key": "0" }, { "key": "1" }],
+                "key": "saved-group-test",
+                "hashAttribute": "id"
+              }
+            ]
+          }
+        },
+        "dateUpdated": "2026-09-24T15:16:39.467Z",
+        "savedGroups": {
+          "beta": { "type": "list", "attributeKey": "id", "values": ["u_1", "u_2"] },
+          "numbers": { "type": "list", "attributeKey": "age", "values": [21, 30] },
+          "tags": { "type": "list", "attributeKey": "tags", "values": ["vip"] },
+          "nested-id": { "type": "list", "attributeKey": "account.id", "values": ["a_1"] },
+          "parent-value": { "type": "list", "attributeKey": "value", "values": ["on"] },
+          "pro": { "type": "condition", "condition": { "plan": "pro" } },
+          "parent-condition": { "type": "condition", "condition": { "value": "on" } },
+          "nested": {
+            "type": "condition",
+            "condition": {
+              "$and": [{ "country": "US" }, { "$savedGroup": { "id": "pro" } }, { "$savedGroup": { "id": "beta" } }]
+            }
+          },
+          "cycle-a": { "type": "condition", "condition": { "$savedGroup": { "id": "cycle-b" } } },
+          "cycle-b": { "type": "condition", "condition": { "$savedGroup": { "id": "cycle-a" } } }
+        }
+      }
+    },
+    {
+      "name": "referencesV2-encrypted",
+      "payload": {
+        "features": {},
+        "dateUpdated": "2026-09-24T15:16:39.469Z",
+        "encryptedFeatures": "bog9G7RpOOI73Kag/VET4w==.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",
+        "encryptedSavedGroups": "mahlxLROi2UX2zqQ4sXJGA==.LcKzVcT8GHhxDcomdaVTmIkWON0XuyQ0TX4tY4Bx+QDTpqpgTMvwlKBAUQ3sMS+fYsRyUZ0tKn8+6ZFpt+0TifljeK1TGNxBLCqs9sjXN24VQLElqLg8cUgV5BcKylN1t116WavfF7w+q3frHhJaohiGuE9bCOmMKtd13RohPmppN8bWyX0ulv3GTJ56wNsiDigwygL2DRk1/2mA1BI5syOcBg8brHU9PwKrJ4v9qcImq2zHBCsfOZ6THdUoe9btOpBntm/BR79Wntta5qJxrS9/IsiAiWwq0977YENCub5AVADx1xNzrpzWFOJ54hm8MsmxRQ9L/ncsVtsjEn59sZdTgIxgDZ7mGDdP19dZXENfaBwZrpttqX2dOYQogzUy4UCHd+wpchJ4UoSACJf9nmQsxFoFsohYuCYCvV2n2n3uRm838Et4dIr/oeXvkJ+rojpPsRYFTRv+YaQQHbB4U1A7BQRCqCF0h8UaGDpzkgUKU6yJfBHtRUXCTA700CtzypXKu6VJj9WfqKaqGr5tPN7ikOaKw9+qlZYuOhXmkTQerHuHkRGCartn5ZM+igSQBhfl40X+zYRw1TEXB1k9+kepxfeKBsiEVR+vcSdpeyXAynTAMG1dhQr0B52tcZoejSJs8fAQGGl8/bnXZAZ8VmlJVxeFPxgsyXQ961X9leNPoLNOVFVZ8v5T98kFSmLWT9LmtbnmVNtdZVuK9qIdoxwdR3lDrX6xRj045xnjUq6y++bNw4p2t8XpfjFwhTFysj9UfPKu+YJ4mbEfnCCm210K4IHn6xAyy0y+C47HgDlzAD5wKxhYfUM64bE3vf3Ncoi/Ns4jSx4wu9ZbdREfLJ1JSGjMLGkQjZqeSpZI1BQ3SURbpOG0ipZhARmhIMe2FxIJPVrVKiAvCGdHrnO9EzlKc7evN0YYfHm8y2OwFga806/id8RQZKjUm7O7R0YyukG0u5eQYWDvlhLeNPt1VzBEFwX60l7VZCcNMfSt0fg="
+      }
+    }
+  ],
+  "evaluations": [
+    {
+      "attributes": {
+        "id": "u_1",
+        "backup_id": "outside",
+        "plan": "pro",
+        "country": "US",
+        "age": 21,
+        "tags": ["basic", "vip"],
+        "account": { "id": "a_1" }
+      },
+      "features": {
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "all": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-condition": {
+          "value": "on",
+          "on": true,
+          "off": false,
+          "source": "force",
+          "experimentResult": null
+        },
+        "experiment": {
+          "value": "treatment",
+          "on": true,
+          "off": false,
+          "source": "experiment",
+          "experimentResult": { "value": "treatment", "variationId": 1, "inExperiment": true, "hashUsed": true }
+        }
+      }
+    },
+    {
+      "attributes": {
+        "id": "u_1",
+        "backup_id": "outside",
+        "plan": "free",
+        "country": "CA",
+        "age": 22,
+        "tags": ["basic"],
+        "account": { "id": "a_2" }
+      },
+      "features": {
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "prerequisite-list": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "prerequisite-condition": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
+      }
+    },
+    {
+      "attributes": {
+        "id": "outside",
+        "backup_id": "u_1",
+        "plan": "pro",
+        "country": "US",
+        "age": 30,
+        "tags": [],
+        "account": "a_1"
+      },
+      "features": {
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "exclude-override": {
+          "value": "off",
+          "on": true,
+          "off": false,
+          "source": "defaultValue",
+          "experimentResult": null
+        },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-condition": {
+          "value": "on",
+          "on": true,
+          "off": false,
+          "source": "force",
+          "experimentResult": null
+        },
+        "experiment": {
+          "value": "control",
+          "on": true,
+          "off": false,
+          "source": "experiment",
+          "experimentResult": { "value": "control", "variationId": 0, "inExperiment": true, "hashUsed": true }
+        }
+      }
+    },
+    {
+      "attributes": {
+        "id": "outside",
+        "backup_id": "outside",
+        "plan": "free",
+        "country": "CA",
+        "age": "21",
+        "tags": ["vip"],
+        "account": { "id": "a_1" }
+      },
+      "features": {
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "none": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "prerequisite-list": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "prerequisite-condition": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
+      }
+    },
+    {
+      "attributes": { "id": "u_2", "backup_id": "u_2", "plan": "pro", "country": "US", "age": 30, "tags": "vip" },
+      "features": {
+        "list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "condition": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "nested": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "all": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "any": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "none": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "not-both": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "exclude-override": {
+          "value": "off",
+          "on": true,
+          "off": false,
+          "source": "defaultValue",
+          "experimentResult": null
+        },
+        "numeric": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "array": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-list": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "prerequisite-condition": {
+          "value": "on",
+          "on": true,
+          "off": false,
+          "source": "force",
+          "experimentResult": null
+        },
+        "experiment": {
+          "value": "control",
+          "on": true,
+          "off": false,
+          "source": "experiment",
+          "experimentResult": { "value": "control", "variationId": 0, "inExperiment": true, "hashUsed": true }
+        }
+      }
+    },
+    {
+      "attributes": {},
+      "features": {
+        "list": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "condition": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "nested": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "all": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "any": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "none": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "not-both": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "override": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-override": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "numeric": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "array": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "dot-path": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "missing": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "exclude-missing": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "invalid": { "value": "on", "on": true, "off": false, "source": "force", "experimentResult": null },
+        "cycle": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "parent": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null },
+        "prerequisite-list": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "prerequisite-condition": {
+          "value": null,
+          "on": false,
+          "off": true,
+          "source": "prerequisite",
+          "experimentResult": null
+        },
+        "experiment": { "value": "off", "on": true, "off": false, "source": "defaultValue", "experimentResult": null }
+      }
+    }
+  ],
+  "invalidEncryptedSavedGroups": [
+    "uHq1H13NHS3c9q7QJvCHWg==.y2+3yIsXCjwin5+1j53k7w==",
+    "gfQp4TWaczJbC/A5C0QV+g==.n9sB+FIpdZypnhlO88uEcQ==",
+    "i1ck8kOm33j1n8lIlDRlLQ==.UGmBA2G6sO9eHiWVY0O2PA=="
+  ]
+}
