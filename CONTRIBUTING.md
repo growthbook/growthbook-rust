@@ -175,8 +175,8 @@ Their cases are retained in the upstream file and available through the ignored
 `growthbook::test::evaluate_contextual_bandits` test. Saved-group v2 suites run
 in `tests/saved_group_references_v2.rs`.
 
-CI validates the pinned checksum and compares every upstream suite with the
-JavaScript SDK's current `main` branch:
+PR CI verifies the corpus against the exact upstream commit and checksum in
+`source.json`:
 
 ```sh
 python3 tests/scripts/check_corpus_freshness.py
@@ -189,9 +189,16 @@ To compare against a local copy instead of fetching:
 python3 tests/scripts/check_corpus_freshness.py --js-source /path/to/cases.json
 ```
 
-Missing or changed upstream cases fail. Rust additions and execution exclusions
-cannot hide drift. Investigate freshness failures even when local Rust tests
-pass; they can reflect new upstream cases for unsupported SDK capabilities.
+A separate weekly workflow checks for newer cases on upstream `main`, so
+upstream changes do not block unrelated PRs. Run that check locally with:
+
+```sh
+python3 tests/scripts/check_corpus_freshness.py --upstream-main
+```
+
+Missing or changed upstream cases fail the maintenance check. Rust additions
+and execution exclusions cannot hide drift. Fetch or checksum failures fail
+validation rather than reporting an unverified snapshot as passing.
 
 ### Server-generated payloads
 

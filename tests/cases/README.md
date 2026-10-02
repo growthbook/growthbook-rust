@@ -28,7 +28,7 @@ commit, preserving its bytes. Update `source.json` with that commit, its
 hand-edit the upstream file or change its version independently of its cases.
 Keep local cases in `rust.json`; if upstream adopts one, remove the local copy.
 
-Run the Rust tests and compare the snapshot with upstream:
+Run the Rust tests and verify the snapshot against its pinned upstream commit:
 
 ```sh
 cargo test --locked
@@ -37,11 +37,22 @@ python3 tests/scripts/check_corpus_freshness.py
 python3 -m unittest discover -s tests/scripts -p 'test_*.py'
 ```
 
-The freshness checker validates the local checksum first, then compares every
-suite (including nested and unsupported suites) with JS `main`. Missing or
-changed upstream cases fail; extra cases from a newer pinned snapshot are
-informational. Rust additions and execution exclusions cannot hide drift.
-An upstream fetch failure remains a warning, matching the existing CI policy.
+PR CI validates the local checksum, then fetches the commit recorded in
+`source.json` and checks its bytes against the same checksum. New upstream
+commits do not affect this check. Fetch or integrity failures fail validation.
+
+The separate `Upstream corpus freshness` workflow compares every suite
+(including nested and unsupported suites) with JS `main` every Monday at
+09:23 UTC. It also supports manual runs from the Actions tab. Missing or changed
+upstream cases fail that maintenance workflow without blocking unrelated PRs;
+extra cases from a newer pinned snapshot are informational. Rust additions and
+execution exclusions cannot hide drift.
+
+To check for newer upstream cases locally:
+
+```sh
+python3 tests/scripts/check_corpus_freshness.py --upstream-main
+```
 
 To check against a local checkout instead of fetching:
 
