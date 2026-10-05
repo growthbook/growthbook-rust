@@ -199,8 +199,23 @@ impl GrowthBookClientBuilder {
     }
 
     /// Set saved groups for the manual (non-API) load path, from the raw
-    /// `{ "group_id": [values] }` payload shape. Saved groups loaded from the
-    /// API response are handled separately during refresh.
+    /// savedGroups payload: legacy arrays, typed lists, or condition groups.
+    /// Saved groups loaded from the API response are handled during refresh.
+    ///
+    /// Typed entries are referenced by a top-level condition such as
+    /// `{"$savedGroup": {"id": "beta"}}`. A list reference may override its
+    /// attribute with `{"id": "beta", "attributeKey": "backup_id"}`.
+    ///
+    /// ```
+    /// use growthbook_rust::client::GrowthBookClientBuilder;
+    /// use serde_json::json;
+    ///
+    /// let builder = GrowthBookClientBuilder::new().saved_groups(json!({
+    ///     "beta": {"type": "list", "attributeKey": "id", "values": ["u_1", "u_2"]},
+    ///     "pro": {"type": "condition", "condition": {"plan": "pro"}},
+    ///     "legacy": ["u_1"]
+    /// }));
+    /// ```
     pub fn saved_groups(
         mut self,
         saved_groups: serde_json::Value,
@@ -300,8 +315,8 @@ impl GrowthBookClient {
     }
 
     /// Like [`Self::refresh`], but returns `Err` on failure (non-2xx, network
-    /// error, bad body) instead of only logging it; existing features are left
-    /// untouched on error.
+    /// error, bad body, or decryption failure). Existing features and saved
+    /// groups are left untouched on error.
     pub async fn try_refresh(&self) -> Result<(), GrowthbookError> {
         if let Some(gateway) = &self.gateway {
             let cache_key = "features";
@@ -309,19 +324,18 @@ impl GrowthBookClient {
             // Try cache first
             if let Some(cache) = &self.cache {
                 if let Some(response) = cache.get(cache_key).await {
-                    self.update_gb(response);
-                    return Ok(());
+                    return self.update_gb(response);
                 }
             }
 
             // Fetch from network
             let response = gateway.get_features(None).await?;
 
-            // Update cache
+            // Validate and decrypt before caching or replacing the current state.
+            self.update_gb(response.clone())?;
             if let Some(cache) = &self.cache {
-                cache.set(cache_key, response.clone()).await;
+                cache.set(cache_key, response).await;
             }
-            self.update_gb(response);
 
             Ok(())
         } else {
@@ -332,26 +346,16 @@ impl GrowthBookClient {
     fn update_gb(
         &self,
         response: GrowthBookResponse,
-    ) {
+    ) -> Result<(), GrowthbookError> {
         let mut features = response.features;
+        let mut saved_groups = response.saved_groups;
 
         if let Some(encrypted_features) = response.encrypted_features {
-            if let Some(key) = &self.decryption_key {
-                match decrypt_features(&encrypted_features, key) {
-                    Ok(decrypted) => {
-                        if let Ok(parsed_features) = serde_json::from_str(&decrypted) {
-                            features = Some(parsed_features);
-                        } else {
-                            error!("[growthbook-sdk] Failed to parse decrypted features");
-                        }
-                    },
-                    Err(e) => {
-                        error!("[growthbook-sdk] Failed to decrypt features: {:?}", e);
-                    },
-                }
-            } else {
-                error!("[growthbook-sdk] Encrypted features received but no decryption key provided");
-            }
+            features = Some(decrypt_payload_json(&encrypted_features, self.decryption_key.as_deref(), "features")?);
+        }
+        if let Some(encrypted_groups) = response.encrypted_saved_groups {
+            let groups = decrypt_payload_json(&encrypted_groups, self.decryption_key.as_deref(), "saved groups")?;
+            saved_groups = Some(serde_json::Value::Object(groups));
         }
 
         let mut writable_config = self.gb.write().expect("problem to create mutex for gb data");
@@ -361,12 +365,13 @@ impl GrowthBookClient {
             features: features.unwrap_or_default(),
             attributes,
             sticky_bucket_service: writable_config.sticky_bucket_service.clone(),
-            saved_groups: saved_groups_from_value(response.saved_groups.as_ref()),
+            saved_groups: saved_groups_from_value(saved_groups.as_ref()),
         };
 
         for callback in &self.on_refresh {
             callback();
         }
+        Ok(())
     }
 
     pub fn start_auto_refresh(&self) {
@@ -504,13 +509,26 @@ use base64::{engine::general_purpose, Engine as _};
 
 type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 
-fn decrypt_features(
-    encrypted_features: &str,
+/// Decode one encrypted payload field without exposing decrypted values in errors.
+fn decrypt_payload_json<T: serde::de::DeserializeOwned>(
+    encrypted: &str,
+    key: Option<&str>,
+    field: &str,
+) -> Result<T, GrowthbookError> {
+    use crate::error::GrowthbookErrorCode;
+
+    let key = key.ok_or_else(|| GrowthbookError::new(GrowthbookErrorCode::ConfigError, &format!("Cannot decrypt {field} without a decryption key")))?;
+    let decrypted = decrypt_payload(encrypted, key).map_err(|_| GrowthbookError::new(GrowthbookErrorCode::ParseError, &format!("Failed to decrypt {field}")))?;
+    serde_json::from_str(&decrypted).map_err(|_| GrowthbookError::new(GrowthbookErrorCode::ParseError, &format!("Failed to parse decrypted {field}")))
+}
+
+fn decrypt_payload(
+    encrypted_payload: &str,
     key: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let parts: Vec<&str> = encrypted_features.split('.').collect();
+    let parts: Vec<&str> = encrypted_payload.split('.').collect();
     if parts.len() != 2 {
-        return Err("Invalid encrypted features format".into());
+        return Err("Invalid encrypted payload format".into());
     }
 
     let iv = general_purpose::STANDARD.decode(parts[0])?;

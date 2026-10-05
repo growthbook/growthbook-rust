@@ -71,7 +71,7 @@ mod test {
     #[test_context(TestContext)]
     #[rstest]
     #[tokio::test]
-    async fn should_return_enabled_true_when_attribute_is_missing(ctx: &mut TestContext) -> Result<(), Box<dyn std::error::Error>> {
+    async fn should_return_enabled_false_when_attribute_is_missing(ctx: &mut TestContext) -> Result<(), Box<dyn std::error::Error>> {
         let vec = GrowthBookAttribute::from(json!({
             "any": "1.2.4"
         }))
@@ -79,7 +79,7 @@ mod test {
 
         let on = ctx.growthbook.is_on("gte-rule", Some(vec));
 
-        assert!(on);
+        assert!(!on);
 
         Ok(())
     }

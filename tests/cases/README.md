@@ -17,9 +17,8 @@ ignored `growthbook::test::evaluate_contextual_bandits` test. Ordinary experimen
 and unknown-field tolerance cases still run. When adding support, remove the
 exclusions/ignore and extend result validation to cover bandit metadata.
 
-The vendored snapshot also contains saved-group v2 suites. This maintenance
-branch excludes them until the separate saved-group implementation adds its
-runners. Corpus contents and `specVersion` do not declare SDK capabilities.
+Saved-group v2 suites run in `tests/saved_group_references_v2.rs`. Corpus
+contents and `specVersion` do not declare SDK capabilities.
 
 ## Updating the snapshot
 

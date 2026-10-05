@@ -18,12 +18,13 @@ impl HttpClient {
         timeout_duration: Duration,
     ) -> Result<ClientWithMiddleware, GrowthbookError> {
         let mut default_headers = HeaderMap::new();
-        //keep connection alive off by default
+        // Disable reuse as well as requesting closure; otherwise a rapid refresh
+        // can borrow a pooled connection while the server is closing it.
         default_headers.insert(CONNECTION, HeaderValue::from_static("close"));
 
         let default_config_client = Client::builder()
             .timeout(timeout_duration)
-            .pool_idle_timeout(None)
+            .pool_max_idle_per_host(0)
             .default_headers(default_headers)
             .build()
             .map_err(GrowthbookError::from)?;

@@ -1,5 +1,5 @@
 use growthbook_rust::growthbook::GrowthBook;
-use growthbook_rust::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
+use growthbook_rust::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGroup};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -13,7 +13,7 @@ fn evaluate(
             "rules": [{"condition": condition, "force": true}]
         }}))
         .unwrap(),
-        saved_groups: HashMap::from([("versions".to_owned(), vec![GrowthBookAttributeValue::String("1.2.0".to_owned())])]),
+        saved_groups: HashMap::from([("versions".to_owned(), SavedGroup::LegacyList(vec![GrowthBookAttributeValue::String("1.2.0".to_owned())]))]),
         forced_variations: None,
         attributes: None,
         sticky_bucket_service: None,
