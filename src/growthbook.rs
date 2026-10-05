@@ -55,7 +55,6 @@ impl GrowthBook {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-    use std::fs;
 
     use serde::Deserialize;
     use serde_json::Value;
@@ -70,8 +69,29 @@ mod test {
     #[tokio::test]
     async fn evaluate_get_bucket_range() -> Result<(), Box<dyn std::error::Error>> {
         let cases = Cases::new();
+        evaluate_feature_cases(cases.feature);
+        Ok(())
+    }
 
-        for value in cases.feature {
+    #[tokio::test]
+    #[ignore = "Contextual bandits are not supported by the Rust SDK"]
+    async fn evaluate_contextual_bandits() {
+        let all = crate::corpus::load();
+        let active = crate::corpus::active();
+        let mut cases = all["contextualBandit"].as_array().expect("bandit cases").clone();
+        cases.extend(
+            all["feature"]
+                .as_array()
+                .expect("feature cases")
+                .iter()
+                .filter(|case| !active["feature"].as_array().expect("active features").contains(case))
+                .cloned(),
+        );
+        evaluate_feature_cases(cases);
+    }
+
+    fn evaluate_feature_cases(cases: Vec<Value>) {
+        for value in cases {
             let feature = EvalFeature::new(value);
 
             let saved_groups = saved_groups_from_value(feature.feature.get("savedGroups"));
@@ -91,8 +111,6 @@ mod test {
             let result = gb.check(feature.feature_name.as_str(), &user_attributes);
             validate_result(feature, result);
         }
-
-        Ok(())
     }
 
     fn validate_result(
@@ -164,9 +182,7 @@ mod test {
 
     impl Cases {
         pub fn new() -> Self {
-            let contents = fs::read_to_string("./tests/all_cases.json").expect("Should have been able to read the file");
-
-            serde_json::from_str(&contents).expect("Failed to create cases")
+            serde_json::from_value(crate::corpus::active()).expect("Failed to create cases")
         }
     }
 }

@@ -16,3 +16,7 @@ pub mod model_public;
 mod namespace;
 mod range;
 pub mod sticky_bucket;
+
+#[cfg(test)]
+#[path = "../tests/cases/mod.rs"]
+mod corpus;
