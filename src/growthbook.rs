@@ -24,19 +24,14 @@ impl GrowthBook {
         option_user_attributes: &Option<Vec<GrowthBookAttribute>>,
     ) -> FeatureResult {
         if let Some(feature) = self.features.get(flag_name) {
-            // Merge instance attributes with call-time attributes
-            let mut merged_attributes = Vec::new();
-
-            // Add instance attributes first
+            // Call-time attributes override instance attributes with the same key.
+            let mut merged_attributes = option_user_attributes.clone().unwrap_or_default();
             if let Some(instance_attrs) = &self.attributes {
                 for attr in instance_attrs.values() {
-                    merged_attributes.push(attr.clone());
+                    if !merged_attributes.iter().any(|it| it.key == attr.key) {
+                        merged_attributes.push(attr.clone());
+                    }
                 }
-            }
-
-            // Add/Override with call-time attributes
-            if let Some(call_attrs) = option_user_attributes {
-                merged_attributes.extend(call_attrs.clone());
             }
 
             feature.get_value(
