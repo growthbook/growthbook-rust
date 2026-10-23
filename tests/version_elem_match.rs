@@ -39,7 +39,7 @@ fn version_operators_compare_array_members_and_not_negates_the_match() {
 #[test]
 fn numeric_negative_zero_compares_as_zero() {
     for (operator, expected) in [("$vgt", false), ("$vgte", true), ("$vlt", false), ("$vlte", true), ("$veq", true), ("$vne", false)] {
-        for (attribute, operand) in [(json!(-0.0), json!("0")), (json!("0"), json!(-0.0))] {
+        for (attribute, operand) in [(json!(-0.0), json!(0)), (json!(0), json!(-0.0))] {
             let condition = json!({operator: operand});
             assert_eq!(evaluate(json!({"tags": condition.clone()}), attribute.clone()), expected, "{operator}: {attribute}");
             assert_eq!(evaluate(json!({"tags": {"$elemMatch": condition}}), json!([attribute])), expected, "array {operator}");
@@ -71,7 +71,9 @@ fn member_context_preserves_saved_groups_and_falsy_values() {
     let condition = json!({"tags": {"$elemMatch": {"$inGroup": "versions", "$vgt": "1.0.0"}}});
     assert!(evaluate(condition.clone(), json!(["1.2.0"])));
     assert!(!evaluate(condition, json!(["1.3.0"])));
-    for value in [json!(0), json!(""), json!(false)] {
-        assert!(evaluate(json!({"tags": {"$elemMatch": {"$veq": "0"}}}), json!([value])));
+    for (value, operand) in [(json!(0), json!(0)), (json!(""), json!("0"))] {
+        assert!(evaluate(json!({"tags": {"$elemMatch": {"$veq": operand}}}), json!([value])));
     }
+    // Booleans are not versions.
+    assert!(!evaluate(json!({"tags": {"$elemMatch": {"$veq": "0"}}}), json!([false])));
 }

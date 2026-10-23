@@ -3,12 +3,12 @@ use growthbook_rust::model_public::GrowthBookAttribute;
 use serde_json::json;
 
 // R7: `$eq`/`$ne` must be strict (JS `===`), with no number↔string coercion.
-// `$lt`/`$gt` keep their coercion, matching JS `<`/`>`.
+// `$lt`/`$gt` are strict too: a string attribute never satisfies a numeric bound.
 //
 // Each feature forces `true` when its condition matches, so `is_on` reflects
 // the operator result directly.
 #[tokio::test]
-async fn eq_ne_are_strict_lt_still_coerces() {
+async fn eq_ne_and_lt_are_strict() {
     let features_json = json!({
         "eq-num": {
             "defaultValue": false,
@@ -40,8 +40,10 @@ async fn eq_ne_are_strict_lt_still_coerces() {
     assert!(client.is_on("ne-num", Some(attrs(json!("5")))), "$ne 5 must treat string \"5\" as not-equal");
     // $eq true vs 1 → false (boolean vs number are different JS types)
     assert!(!client.is_on("eq-bool", Some(attrs(json!(1)))), "$eq true must not match integer 1");
-    // $lt 5 vs "3" → true (numeric coercion still applies for ordering ops)
-    assert!(client.is_on("lt-num", Some(attrs(json!("3")))), "$lt 5 must still coerce string \"3\"");
+    // $lt 5 vs "3" → false (ordering operators don't coerce either)
+    assert!(!client.is_on("lt-num", Some(attrs(json!("3")))), "$lt 5 must not coerce string \"3\"");
+    // $lt 5 vs 3 → true (same type sanity check)
+    assert!(client.is_on("lt-num", Some(attrs(json!(3)))), "$lt 5 must match integer 3");
 }
 
 // `$eq`/`$ne` must treat all JSON numbers as one type, matching JS (`5 === 5.0`).
@@ -81,10 +83,8 @@ async fn eq_ne_treat_int_and_float_as_the_same_number() {
     assert!(!client.is_on("eq-int", Some(attrs(json!("5")))), "$eq 5 must still reject string \"5\"");
 }
 
-// `$ne` must stay the exact inverse of `$eq`, including for nested-object
-// conditions that resolve the parent key to a whole object and compare via the
-// flattened-string path. (Guards against `$eq` and `$ne` using different
-// object comparisons, which would break the `ne == !eq` invariant.)
+// `$ne` must stay the exact inverse of `$eq` when the attribute is an object.
+// An object is never `===` to a scalar, so `$eq` fails and `$ne` matches.
 #[tokio::test]
 async fn ne_is_the_inverse_of_eq_for_nested_objects() {
     let features_json = json!({
@@ -100,12 +100,12 @@ async fn ne_is_the_inverse_of_eq_for_nested_objects() {
 
     let client = GrowthBookClientBuilder::new().features_json(features_json).unwrap().build().await.expect("Failed to build client");
 
-    // user `tags` is a nested object that flattens to "world".
+    // user `tags` is an object whose only value is "world".
     let attrs = GrowthBookAttribute::from(json!({ "tags": { "hello": "world" } })).unwrap();
 
     let eq = client.is_on("eq-obj", Some(attrs.clone()));
     let ne = client.is_on("ne-obj", Some(attrs));
-    assert!(eq, "$eq should match the flattened object");
-    assert!(!ne, "$ne should be the inverse of $eq");
+    assert!(!eq, "$eq must not match an object attribute");
+    assert!(ne, "$ne should be the inverse of $eq");
     assert_ne!(eq, ne, "ne must be the exact inverse of eq");
 }

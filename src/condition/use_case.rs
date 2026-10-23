@@ -21,7 +21,7 @@ impl ConditionsMatchesAttributes for Vec<GrowthBookAttribute> {
         &self,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        !ctx.work_limit_exceeded() && self.iter().all(|it| verify(None, it, ctx, false)) && !ctx.work_limit_exceeded()
+        !ctx.work_limit_exceeded() && self.iter().all(|it| verify(None, it, ctx)) && !ctx.work_limit_exceeded()
     }
 }
 
@@ -29,7 +29,6 @@ fn verify(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
-    array_size: bool,
 ) -> bool {
     if ctx.work_limit_exceeded() {
         return false;
@@ -45,10 +44,10 @@ fn verify(
         "$or" => OperatorCondition::or(parent_attribute, feature_attribute, ctx, verify),
         "$in" => OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, false, verify),
         "$nin" => OperatorCondition::nin(parent_attribute, feature_attribute, ctx, false, verify),
-        "$gt" => OrderComparison::gt(parent_attribute, feature_attribute, ctx, array_size),
-        "$gte" => OrderComparison::gte(parent_attribute, feature_attribute, ctx, array_size),
-        "$lt" => OrderComparison::lt(parent_attribute, feature_attribute, ctx, array_size),
-        "$lte" => OrderComparison::lte(parent_attribute, feature_attribute, ctx, array_size),
+        "$gt" => OrderComparison::gt(parent_attribute, feature_attribute, ctx),
+        "$gte" => OrderComparison::gte(parent_attribute, feature_attribute, ctx),
+        "$lt" => OrderComparison::lt(parent_attribute, feature_attribute, ctx),
+        "$lte" => OrderComparison::lte(parent_attribute, feature_attribute, ctx),
         "$eq" => OperatorCondition::eq(parent_attribute, feature_attribute, ctx, verify),
         "$exists" => OperatorCondition::exists(parent_attribute, feature_attribute, ctx, verify),
         "$regex" => RegexComparison::matches(parent_attribute, feature_attribute, ctx),
@@ -92,7 +91,7 @@ pub(super) fn matches_value(
         if is_operator_object(fields) {
             let attributes = [GrowthBookAttribute::new(String::from("value"), actual.clone())];
             let nested = ctx.with_attributes(&attributes);
-            return fields.iter().all(|field| verify(Some(&attributes[0]), field, &nested, false));
+            return fields.iter().all(|field| verify(Some(&attributes[0]), field, &nested));
         }
     }
     if case_insensitive {
@@ -137,6 +136,15 @@ fn saved_group(
         Some(SavedGroup::Condition(condition)) => condition.matches(&next),
         _ => false,
     }
+}
+
+/// Evaluate a plain (non-operator) condition value against the attribute at `key`.
+pub(super) fn implicit_equals(
+    key: &str,
+    expected: &GrowthBookAttributeValue,
+    ctx: &ConditionEvalContext,
+) -> bool {
+    non_operator_or_condition(None, &GrowthBookAttribute::new(key.to_owned(), expected.clone()), ctx)
 }
 
 fn non_operator_or_condition(
@@ -188,20 +196,18 @@ fn object(
     ctx: &ConditionEvalContext,
     it: &[GrowthBookAttribute],
 ) -> bool {
-    if it.is_empty() {
-        // A non-operator condition `{key: {}}` is a deep-equality check, so it
-        // matches only when the user's value at `key` is itself an empty object
-        // `{}`. A missing attribute (or any non-object / non-empty value) does
-        // not match.
-        matches!(
-            ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key),
-            Some(GrowthBookAttributeValue::Object(user_object)) if user_object.is_empty()
-        )
-    } else {
+    if is_operator_object(it) {
         it.iter().all(|next| {
             let parent = feature_attribute.aggregate_key(parent_attribute);
-            verify(Some(&parent), next, ctx, false)
+            verify(Some(&parent), next, ctx)
         })
+    } else {
+        // A non-operator object condition (including `{}`) is a deep-equality
+        // check, so it matches only an object attribute with the same contents.
+        match ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+            Some(user_value @ GrowthBookAttributeValue::Object(_)) => user_value.to_value() == feature_attribute.value.to_value(),
+            _ => false,
+        }
     }
 }
 
@@ -223,8 +229,9 @@ fn fallback(
     ctx: &ConditionEvalContext,
     it: &GrowthBookAttributeValue,
 ) -> bool {
+    // Numbers and booleans: JS `===`, so no coercion from other types.
     if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-        it == &user_value
+        it.strict_eq(&user_value)
     } else {
         false
     }

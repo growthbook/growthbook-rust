@@ -1,5 +1,5 @@
 use crate::condition::eval_context::ConditionEvalContext;
-use crate::condition::use_case::matches_value;
+use crate::condition::use_case::{implicit_equals, is_operator_object, matches_value};
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
@@ -10,10 +10,13 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
-        match &feature_attribute.value {
-            GrowthBookAttributeValue::Object(it) => !it.iter().all(|next| recursive(parent_attribute, next, ctx, false)),
+        match (&feature_attribute.value, parent_attribute) {
+            (GrowthBookAttributeValue::Object(it), None) => !it.iter().all(|next| recursive(None, next, ctx)),
+            (GrowthBookAttributeValue::Object(it), Some(_)) if is_operator_object(it) => !it.iter().all(|next| recursive(parent_attribute, next, ctx)),
+            // Any other value is an implicit equality check on the attribute.
+            (expected, Some(parent)) => !implicit_equals(&parent.key, expected, ctx),
             _ => false,
         }
     }
@@ -22,7 +25,7 @@ impl OperatorCondition {
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         and_nor(&feature_attribute, ctx, recursive, false)
     }
@@ -31,7 +34,7 @@ impl OperatorCondition {
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         and_nor(&feature_attribute, ctx, recursive, true)
     }
@@ -60,47 +63,24 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
-        if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            !match &user_value {
-                GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
-                // inverse of `eq`: nested-object conditions resolve the parent
-                // key to the whole object and rely on the flattened-string
-                // comparison rather than structural `PartialEq`.
-                GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars (and a present `null`, i.e. `Empty`) use JS `===`:
-                // `null !== 5` is true, `null !== null` is false, and `Int`/`Float`
-                // are one JS `number` type so `5 === 5.0`.
-                it => it.strict_eq(&feature_attribute.value),
-            }
-        } else {
-            true
-        }
+        !Self::eq(parent_attribute, feature_attribute, ctx, recursive)
     }
 
     pub fn eq(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
-        if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            match &user_value {
-                GrowthBookAttributeValue::Array(it) => it.iter().any(|item| item == &feature_attribute.value),
-                // A nested-object condition like {tags: {hello: "world"}} reaches
-                // here via the recursive object path, with the parent key
-                // resolving to the whole object; the flattened-string comparison
-                // is load-bearing for that case, so keep it for objects.
-                GrowthBookAttributeValue::Object(_) => user_value.to_string() == feature_attribute.value.to_string(),
-                // Scalars (and a present `null`, i.e. `Empty`) use JS `===`: no
-                // string coercion (so `$eq: 5` does NOT match "5"), `null === null`
-                // but `null !== 5`, and `Int`/`Float` are one JS `number` type so
-                // `$eq: 5` matches `5.0`. Coercion stays on $lt/$gt only.
-                it => it.strict_eq(&feature_attribute.value),
-            }
-        } else {
-            false
+        // JS `===`: no coercion between types, and arrays and objects are
+        // never equal to a condition value. `Int`/`Float` are one JS `number`
+        // type, so `$eq: 5` matches `5.0`. Like JS getPath, a missing
+        // attribute is null.
+        match ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty) {
+            GrowthBookAttributeValue::Array(_) | GrowthBookAttributeValue::Object(_) => false,
+            user_value => user_value.strict_eq(&feature_attribute.value),
         }
     }
 
@@ -108,10 +88,14 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         if let GrowthBookAttributeValue::Bool(it) = feature_attribute.value {
-            if ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).is_some() {
+            // Like JS `actual != null`, a present null does not exist.
+            if ctx
+                .find_value(&parent_attribute.unwrap_or(feature_attribute).key)
+                .is_some_and(|value| value != GrowthBookAttributeValue::Empty)
+            {
                 it
             } else {
                 !it
@@ -126,7 +110,7 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         let GrowthBookAttributeValue::Array(members) = &feature_attribute.value else {
             return false;
@@ -140,7 +124,7 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         if !matches!(feature_attribute.value, GrowthBookAttributeValue::Array(_)) {
             return false;
@@ -181,7 +165,7 @@ impl OperatorCondition {
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(it) => {
@@ -189,7 +173,7 @@ impl OperatorCondition {
                     true
                 } else {
                     it.iter().any(|next_value| match next_value {
-                        GrowthBookAttributeValue::Object(feature_value) => feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx, false)),
+                        GrowthBookAttributeValue::Object(feature_value) => feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx)),
                         _ => false,
                     })
                 }
@@ -225,13 +209,13 @@ pub(super) fn value_in_members(
 fn and_nor(
     feature_attribute: &&GrowthBookAttribute,
     ctx: &ConditionEvalContext,
-    recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext, bool) -> bool,
+    recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     negate: bool,
 ) -> bool {
     match &feature_attribute.value {
         GrowthBookAttributeValue::Array(it) => it.iter().all(|next_value| match next_value {
             GrowthBookAttributeValue::Object(feature_value) => {
-                let result = feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx, false));
+                let result = feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx));
                 if negate {
                     !result
                 } else {

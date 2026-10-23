@@ -147,6 +147,15 @@ impl GrowthBookAttributeValue {
         self.to_string().replace('.', "").parse::<f64>().ok()
     }
 
+    /// The value as a JS `number`, or `None` for any other type.
+    pub fn as_number(&self) -> Option<f64> {
+        match self {
+            GrowthBookAttributeValue::Int(it) => Some(*it as f64),
+            GrowthBookAttributeValue::Float(it) => Some(*it),
+            _ => None,
+        }
+    }
+
     /// Equality with JS `===` semantics. JSON has a single `number` type, so
     /// `Int` and `Float` are the same type and compare by numeric value
     /// (`5 === 5.0`). Every other pairing — including string-vs-number — falls

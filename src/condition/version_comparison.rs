@@ -11,7 +11,7 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.gt(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, false, |feature_version, user_version| user_version.gt(feature_version))
     }
 
     pub fn vgte(
@@ -19,7 +19,7 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.ge(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, false, |feature_version, user_version| user_version.ge(feature_version))
     }
 
     pub fn vlt(
@@ -27,7 +27,7 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.lt(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, false, |feature_version, user_version| user_version.lt(feature_version))
     }
 
     pub fn vlte(
@@ -35,7 +35,7 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.le(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, false, |feature_version, user_version| user_version.le(feature_version))
     }
 
     pub fn veq(
@@ -43,7 +43,7 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.eq(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, false, |feature_version, user_version| user_version.eq(feature_version))
     }
 
     pub fn vne(
@@ -51,17 +51,29 @@ impl VersionComparison {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        evaluate(parent_attribute, feature_attribute, ctx, |feature_version, user_version| user_version.ne(feature_version))
+        evaluate(parent_attribute, feature_attribute, ctx, true, |feature_version, user_version| user_version.ne(feature_version))
     }
 }
 
+/// Both sides must be strings, or both numbers. On any other pairing the
+/// comparison fails, so only `$vne` (the negation of `$veq`) matches.
 fn evaluate(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
+    on_type_mismatch: bool,
     condition: fn(&str, &str) -> bool,
 ) -> bool {
-    let user_version = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+    let Some(user_version) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) else {
+        return on_type_mismatch;
+    };
+    let comparable = match (&feature_attribute.value, &user_version) {
+        (GrowthBookAttributeValue::String(_), GrowthBookAttributeValue::String(_)) => true,
+        (feature, user) => feature.as_number().is_some() && user.as_number().is_some(),
+    };
+    if !comparable {
+        return on_type_mismatch;
+    }
     condition(&normalize(&feature_attribute.value), &normalize(&user_version))
 }
 

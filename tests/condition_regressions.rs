@@ -34,10 +34,10 @@ async fn dollar_prefixed_attributes_support_missing_values_and_exclusions() {
 }
 
 #[tokio::test]
-async fn missing_paths_follow_javascript_order_comparisons() {
+async fn missing_paths_fail_order_comparisons() {
     for operator in ["$gt", "$gte", "$lt", "$lte"] {
         for threshold in [json!(100), json!("zzz")] {
-            let expected = threshold.is_number() && matches!(operator, "$lt" | "$lte");
+            let expected = false;
             let comparison = json!({operator: threshold});
             assert_eq!(
                 evaluate(json!({"items.price": comparison.clone()}), json!({"items": [{"price": 50}]})).await,
@@ -61,5 +61,7 @@ async fn all_with_nonnumeric_members_does_not_panic() {
     for operator in ["$gt", "$gte", "$lt", "$lte"] {
         assert!(!evaluate(json!({"arr": {"$all": [{operator: 5}]}}), json!({"arr": [["a1"]]})).await, "{operator}");
     }
-    assert!(evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], [10]]})).await);
+    assert!(evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], 10]})).await);
+    // Arrays are not ordered, so a nested `[10]` does not satisfy `$gt: 5`.
+    assert!(!evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], [10]]})).await);
 }
