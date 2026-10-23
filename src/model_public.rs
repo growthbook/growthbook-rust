@@ -148,7 +148,7 @@ impl GrowthBookAttributeValue {
     }
 
     /// The value as a JS `number`, or `None` for any other type.
-    pub fn as_number(&self) -> Option<f64> {
+    pub(crate) fn as_number(&self) -> Option<f64> {
         match self {
             GrowthBookAttributeValue::Int(it) => Some(*it as f64),
             GrowthBookAttributeValue::Float(it) => Some(*it),
@@ -168,6 +168,23 @@ impl GrowthBookAttributeValue {
             (GrowthBookAttributeValue::Int(a), GrowthBookAttributeValue::Float(b)) => (*a as f64) == *b,
             (GrowthBookAttributeValue::Float(a), GrowthBookAttributeValue::Int(b)) => *a == (*b as f64),
             _ => self == other,
+        }
+    }
+
+    /// Deep equality like JS `JSON.stringify(a) === JSON.stringify(b)`, used for
+    /// plain array and object conditions. Numbers compare by value at any depth
+    /// (`1` equals `1.0`) and never equal booleans or strings. Object keys are
+    /// compared as a set, because payloads are parsed without key order.
+    pub(crate) fn json_eq(
+        &self,
+        other: &GrowthBookAttributeValue,
+    ) -> bool {
+        match (self, other) {
+            (GrowthBookAttributeValue::Array(a), GrowthBookAttributeValue::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.json_eq(b)),
+            (GrowthBookAttributeValue::Object(a), GrowthBookAttributeValue::Object(b)) => {
+                a.len() == b.len() && a.iter().all(|field| b.iter().any(|other| other.key == field.key && field.value.json_eq(&other.value)))
+            },
+            _ => self.strict_eq(other),
         }
     }
 

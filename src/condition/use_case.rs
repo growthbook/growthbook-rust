@@ -99,7 +99,7 @@ pub(super) fn matches_value(
             return actual.to_lowercase() == expected.to_lowercase();
         }
     }
-    actual.strict_eq(expected)
+    actual.json_eq(expected)
 }
 
 /// Resolve a condition-level reference. Unknown reference fields are ignored.
@@ -181,7 +181,7 @@ fn array(
 ) -> bool {
     if let Some(GrowthBookAttributeValue::Array(user_values)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
         if feature_values.len() == user_values.len() {
-            feature_values.iter().enumerate().all(|(index, value)| value == &user_values[index])
+            feature_values.iter().zip(&user_values).all(|(value, user_value)| value.json_eq(user_value))
         } else {
             false
         }
@@ -205,7 +205,7 @@ fn object(
         // A non-operator object condition (including `{}`) is a deep-equality
         // check, so it matches only an object attribute with the same contents.
         match ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-            Some(user_value @ GrowthBookAttributeValue::Object(_)) => user_value.to_value() == feature_attribute.value.to_value(),
+            Some(user_value @ GrowthBookAttributeValue::Object(_)) => user_value.json_eq(&feature_attribute.value),
             _ => false,
         }
     }
