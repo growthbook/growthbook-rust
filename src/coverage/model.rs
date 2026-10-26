@@ -23,11 +23,9 @@ impl Coverage {
                     None
                 }
             } else if let Some(coverage) = option_coverage {
-                // JS (isIncludedInRollout): `coverage === 0` excludes everyone
-                // before hashing, otherwise the boundary is inclusive
-                // (`n <= coverage`), so a user hashing exactly to the coverage
-                // value is included.
-                if coverage != 0.0 && user_weight <= coverage {
+                // Half-open like `inRange`, so a coverage of k buckets includes
+                // exactly k. A user hashing exactly to the coverage is excluded.
+                if user_weight < coverage {
                     Some(FeatureResult::force(force_value.clone()))
                 } else {
                     None
