@@ -88,7 +88,7 @@ pub fn reduce_payload(
             reducer.add(id);
         }
     }
-    let experiments: Vec<Value> = all_experiments.iter().filter(|it| filters.matches(it.get("metadata"))).map(|it| pruner.prune_item(it)).collect();
+    let experiments: Vec<Value> = all_experiments.iter().filter(|it| filters.matches(it.get("metadata"))).map(|it| pruner.prune_item(it, false)).collect();
     for experiment in &experiments {
         reducer.add_parents(experiment);
     }
@@ -134,11 +134,11 @@ pub fn reduce_payload(
     // Keep each saved group whose id appears as a string anywhere, with
     // condition groups reduced. This needs no list of the operators that
     // reference groups.
+    let roots = Value::Array(vec![Value::Object(features.clone()), Value::Array(experiments.clone()), Value::Object(bandits.clone())]);
+    let mut marks = GroupMarks::default();
+    marks.mark(&roots, &saved_groups, true);
     let mut groups = Map::new();
-    let roots = [Value::Object(features.clone()), Value::Array(experiments.clone()), Value::Object(bandits.clone())];
-    for root in &roots {
-        keep_groups(root, &pruner, &mut groups);
-    }
+    keep_groups(&roots, &pruner, &marks.as_written, &mut groups);
 
     let mut reduced = payload.as_object().cloned().unwrap_or_default();
     reduced.insert(String::from("features"), Value::Object(features));
@@ -190,6 +190,7 @@ impl<'a> Pruner<'a> {
     fn prune_item(
         &self,
         item: &Value,
+        is_rule: bool,
     ) -> Value {
         let mut item = item.clone();
         let Some(fields) = item.as_object_mut() else {
@@ -206,8 +207,9 @@ impl<'a> Pruner<'a> {
             // experiment's condition, and a rule's prerequisites are checked before it
             Value::Bool(false) => {
                 fields.insert(String::from("condition"), json!({"$not": {}}));
-                // A force rule that never passes never returns its value
-                if fields.contains_key("force") {
+                // A force rule that never passes never returns its value. An auto
+                // experiment's forced variation still applies to a sticky bucketed user.
+                if is_rule && fields.contains_key("force") {
                     fields.insert(String::from("force"), Value::Null);
                 }
             },
@@ -509,7 +511,7 @@ impl Reducer<'_> {
             rules
                 .iter()
                 .filter(|rule| !scoped || self.filters.rule_in_projects(rule.get("metadata")))
-                .map(|rule| self.pruner.prune_item(rule))
+                .map(|rule| self.pruner.prune_item(rule, true))
                 .collect()
         });
         let mut feature = feature.clone();
@@ -539,9 +541,76 @@ impl Reducer<'_> {
     }
 }
 
+/// Saved groups that keep their condition as written: those evaluated against
+/// something other than the user (each item in `$elemMatch`, or the parent's
+/// value in a prerequisite), and the groups those reference.
+#[derive(Default)]
+struct GroupMarks {
+    as_written: HashSet<String>,
+    seen: HashSet<String>,
+}
+
+impl GroupMarks {
+    fn mark(
+        &mut self,
+        value: &Value,
+        saved_groups: &Value,
+        user: bool,
+    ) {
+        match value {
+            Value::String(id) => {
+                let Some(entry) = saved_groups.get(id.as_str()) else {
+                    return;
+                };
+                if self.as_written.contains(id) || (user && self.seen.contains(id)) {
+                    return;
+                }
+                if user { &mut self.seen } else { &mut self.as_written }.insert(id.clone());
+                self.mark(entry, saved_groups, user);
+            },
+            Value::Array(items) => items.iter().for_each(|item| self.mark(item, saved_groups, user)),
+            Value::Object(fields) => {
+                for (key, item) in fields {
+                    self.mark(item, saved_groups, user && key != "$elemMatch" && key != "parentConditions");
+                }
+            },
+            _ => {},
+        }
+    }
+}
+
+/// The saved group ids anywhere in a value.
+fn group_ids<'v>(
+    value: &'v Value,
+    saved_groups: &Value,
+    found: &mut Vec<&'v str>,
+) {
+    match value {
+        Value::String(id) if saved_groups.get(id.as_str()).is_some() => found.push(id),
+        Value::Array(items) => items.iter().for_each(|item| group_ids(item, saved_groups, found)),
+        Value::Object(fields) => fields.values().for_each(|item| group_ids(item, saved_groups, found)),
+        _ => {},
+    }
+}
+
+/// Whether group `from` references group `to`, directly or through other groups.
+fn reaches(
+    from: &str,
+    to: &str,
+    saved_groups: &Value,
+    visited: &mut HashSet<String>,
+) -> bool {
+    let mut found = vec![];
+    if let Some(entry) = saved_groups.get(from) {
+        group_ids(entry, saved_groups, &mut found);
+    }
+    found.into_iter().any(|id| id == to || (visited.insert(id.to_owned()) && reaches(id, to, saved_groups, visited)))
+}
+
 fn keep_groups(
     value: &Value,
     pruner: &Pruner,
+    as_written: &HashSet<String>,
     groups: &mut Map<String, Value>,
 ) {
     match value {
@@ -552,8 +621,12 @@ fn keep_groups(
             if groups.contains_key(id.as_str()) {
                 return;
             }
+            // A group on a cycle can't be reduced on its own: its result
+            // depends on which group the evaluation entered the cycle from
+            let reduce = !as_written.contains(id.as_str()) && !reaches(id, id, pruner.saved_groups, &mut HashSet::new());
             let reference = json!({"id": id});
-            let kept = match pruner.prune_saved_group(&reference, &HashSet::new(), true) {
+            let pruned = if reduce { pruner.prune_saved_group(&reference, &HashSet::new(), true) } else { Err(Malformed) };
+            let kept = match pruned {
                 Ok(condition @ Value::Object(_)) => {
                     let mut entry = entry.clone();
                     if let Some(fields) = entry.as_object_mut() {
@@ -564,10 +637,10 @@ fn keep_groups(
                 _ => entry.clone(),
             };
             groups.insert(id.clone(), kept.clone());
-            keep_groups(&kept, pruner, groups);
+            keep_groups(&kept, pruner, as_written, groups);
         },
-        Value::Array(items) => items.iter().for_each(|item| keep_groups(item, pruner, groups)),
-        Value::Object(fields) => fields.values().for_each(|item| keep_groups(item, pruner, groups)),
+        Value::Array(items) => items.iter().for_each(|item| keep_groups(item, pruner, as_written, groups)),
+        Value::Object(fields) => fields.values().for_each(|item| keep_groups(item, pruner, as_written, groups)),
         _ => {},
     }
 }
