@@ -282,7 +282,7 @@ fn create_experiment_result(
     hash_used: bool,
     hash_attribute: Option<String>,
     hash_value: Option<Value>,
-    bucket: Option<f32>,
+    bucket: Option<f64>,
     key: String,
     sticky_bucket_used: bool,
 ) -> ExperimentResult {
@@ -301,7 +301,7 @@ fn create_experiment_result(
 }
 
 fn choose_variation(
-    user_weight: f32,
+    user_weight: f64,
     ranges: Vec<Range>,
 ) -> i64 {
     for (index, range) in ranges.iter().enumerate() {
@@ -346,7 +346,7 @@ mod test {
 
     pub struct EvalChooseVariation {
         name: String,
-        weight: f32,
+        weight: f64,
         ranges: Vec<Range>,
         index: i64,
     }
@@ -356,7 +356,7 @@ mod test {
             let array = value.as_array().expect("Failed to convert to array");
             Self {
                 name: array[0].as_str().expect("Failed to convert to str").to_string(),
-                weight: array[1].as_f64().expect("Failed to convert to f64") as f32,
+                weight: array[1].as_f64().expect("Failed to convert to f64"),
                 ranges: array[2]
                     .as_array()
                     .expect("Failed to convert to array")
@@ -364,8 +364,8 @@ mod test {
                     .map(|it| {
                         let array = it.as_array().expect("Failed to convert to array [2]");
                         Range {
-                            start: array[0].as_f64().expect("Failed to convert to f64") as f32,
-                            end: array[1].as_f64().expect("Failed to convert to f64") as f32,
+                            start: array[0].as_f64().expect("Failed to convert to f64"),
+                            end: array[1].as_f64().expect("Failed to convert to f64"),
                         }
                     })
                     .collect(),

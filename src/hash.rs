@@ -30,7 +30,7 @@ impl HashCode {
         input: &str,
         seed: &str,
         version: HashCodeVersion,
-    ) -> Option<f32> {
+    ) -> Option<f64> {
         match version {
             HashCodeVersion::V1 => Some(Self::hash_v1(input, seed)),
             HashCodeVersion::V2 => Some(Self::hash_v2(input, seed)),
@@ -41,17 +41,17 @@ impl HashCode {
     fn hash_v1(
         input: &str,
         seed: &str,
-    ) -> f32 {
+    ) -> f64 {
         let concatenated = format!("{}{}", input, seed);
         let hash_value = Self::fnv1a_32(concatenated.as_bytes());
         let remainder = hash_value % 1000;
-        remainder as f32 / 1000.0
+        remainder as f64 / 1000.0
     }
 
     fn hash_v2(
         input: &str,
         seed: &str,
-    ) -> f32 {
+    ) -> f64 {
         let concatenated = format!("{}{}", seed, input);
         let first = Self::fnv1a_32(concatenated.as_bytes());
 
@@ -60,7 +60,7 @@ impl HashCode {
 
         let remainder = (second as u64) % 10000;
 
-        remainder as f32 / 10000.0
+        remainder as f64 / 10000.0
     }
 
     /// 32-bit FNV-1a. Implemented directly to drop the `hashers` crate,
@@ -115,7 +115,7 @@ mod test {
         seed: String,
         value: String,
         version: i64,
-        result: Option<f32>,
+        result: Option<f64>,
     }
 
     impl EvalHash {
@@ -125,7 +125,7 @@ mod test {
                 seed: array[0].as_str().expect("Failed to convert do str").to_string(),
                 value: array[1].as_str().expect("Failed to convert do str").to_string(),
                 version: array[2].as_i64().expect("Failed to convert to i64"),
-                result: array[3].as_f64().map(|it| it as f32),
+                result: array[3].as_f64(),
             }
         }
     }

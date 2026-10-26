@@ -50,10 +50,6 @@ pub trait JsonHelper {
         &self,
         default: &str,
     ) -> String;
-    fn force_f32(
-        &self,
-        default: f32,
-    ) -> f32;
     fn force_f64(
         &self,
         default: f64,
@@ -102,13 +98,6 @@ impl JsonHelper for Value {
         } else {
             self.to_string()
         }
-    }
-
-    fn force_f32(
-        &self,
-        default: f32,
-    ) -> f32 {
-        self.force_f64(default as f64) as f32
     }
 
     fn force_f64(

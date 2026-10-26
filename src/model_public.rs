@@ -86,12 +86,12 @@ pub struct Experiment {
     pub hash_version: Option<i64>,
     pub hash_attribute: Option<String>,
     pub namespace: Option<Vec<Value>>,
-    pub coverage: Option<f32>,
-    pub ranges: Option<Vec<Vec<f32>>>,
+    pub coverage: Option<f64>,
+    pub ranges: Option<Vec<Vec<f64>>>,
     pub meta: Option<Value>,
     pub filters: Option<Value>,
     pub variations: Vec<Value>,
-    pub weights: Option<Vec<f32>>,
+    pub weights: Option<Vec<f64>>,
     pub condition: Option<Value>,
 }
 
@@ -105,7 +105,7 @@ pub struct ExperimentResult {
     pub hash_used: bool,
     pub hash_attribute: Option<String>,
     pub hash_value: Option<Value>,
-    pub bucket: Option<f32>,
+    pub bucket: Option<f64>,
     pub key: String,
     pub sticky_bucket_used: bool,
 }

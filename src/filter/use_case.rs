@@ -40,8 +40,8 @@ impl Filter {
             // Excluded by this filter unless the weight is in one of its ranges.
             !filter.get_array("ranges", vec![]).iter().any(|array| {
                 Range {
-                    start: array[0].force_f32(0.0),
-                    end: array[1].force_f32(1.0),
+                    start: array[0].force_f64(0.0),
+                    end: array[1].force_f64(1.0),
                 }
                 .in_range(&user_weight)
             })

@@ -67,8 +67,8 @@ pub struct GrowthBookFeatureRuleDto {
     condition: Option<Value>,
     filters: Option<Value>,
     force: Option<Value>,
-    coverage: Option<f32>,
-    range: Option<Vec<f32>>,
+    coverage: Option<f64>,
+    range: Option<Vec<f64>>,
     seed: Option<String>,
     hash_attribute: Option<String>,
     fallback_attribute: Option<String>,
@@ -76,9 +76,9 @@ pub struct GrowthBookFeatureRuleDto {
     key: Option<String>,
     variations: Option<Vec<Value>>,
     name: Option<String>,
-    weights: Option<Vec<f32>>,
+    weights: Option<Vec<f64>>,
     namespace: Option<Vec<Value>>,
-    ranges: Option<Vec<Vec<f32>>>,
+    ranges: Option<Vec<Vec<f64>>>,
     meta: Option<Value>,
     bucket_version: Option<i64>,
     min_bucket_version: Option<i64>,
@@ -176,8 +176,8 @@ fn value_to_condition_map(condition: Option<Value>) -> Option<HashMap<String, Va
 #[serde(rename_all = "camelCase")]
 pub struct GrowthBookFeatureRuleForce {
     pub force: Value,
-    pub coverage: Option<f32>,
-    range: Option<Vec<f32>>,
+    pub coverage: Option<f64>,
+    range: Option<Vec<f64>>,
     pub hash_version: Option<i64>,
     pub filters: Option<Value>,
     pub seed: Option<String>,
@@ -200,8 +200,8 @@ pub struct GrowthBookFeatureRuleParentData {
 #[serde(rename_all = "camelCase")]
 pub struct GrowthBookFeatureRuleRollout {
     pub force: Value,
-    pub coverage: f32,
-    range: Option<Vec<f32>>,
+    pub coverage: f64,
+    range: Option<Vec<f64>>,
     pub seed: Option<String>,
     pub filters: Option<Value>,
     condition: Option<HashMap<String, Value>>,
@@ -217,14 +217,14 @@ pub struct GrowthBookFeatureRuleExperiment {
     pub key: Option<String>,
     pub variations: Vec<Value>,
     name: Option<String>,
-    pub coverage: Option<f32>,
+    pub coverage: Option<f64>,
     seed: Option<String>,
     pub hash_version: Option<i64>,
     pub hash_attribute: Option<String>,
     pub fallback_attribute: Option<String>,
-    weights: Option<Vec<f32>>,
+    weights: Option<Vec<f64>>,
     pub namespace: Option<Vec<Value>>,
-    pub ranges: Option<Vec<Vec<f32>>>,
+    pub ranges: Option<Vec<Vec<f64>>>,
     pub meta: Option<Value>,
     pub filters: Option<Value>,
     pub condition: Option<HashMap<String, Value>>,
@@ -310,8 +310,8 @@ impl GrowthBookFeatureRuleExperiment {
                 (Some(id), Some(start), Some(end)) => (
                     id.force_string(""),
                     Range {
-                        start: start.force_f32(0.0),
-                        end: end.force_f32(1.0),
+                        start: start.force_f64(0.0),
+                        end: end.force_f64(1.0),
                     },
                 ),
                 _ => (String::new(), Range { start: 1.0, end: 0.0 }),
@@ -339,4 +339,29 @@ impl GrowthBookFeatureRuleExperiment {
 
 pub fn option_map_to_attributes(option_map: Option<HashMap<String, Value>>) -> Option<Vec<GrowthBookAttribute>> {
     option_map.map(|conditions| conditions.iter().map(|(k, v)| GrowthBookAttribute::new(k.clone(), GrowthBookAttributeValue::from(v.clone()))).collect())
+}
+
+#[cfg(test)]
+mod test {
+    use serde_json::json;
+
+    use super::{GrowthBookFeatureRuleExperiment, GrowthBookFeatureRuleForce, GrowthBookFeatureRuleRollout};
+
+    #[test]
+    fn rule_structs_deserialize_with_full_f64_precision() {
+        let force: GrowthBookFeatureRuleForce = serde_json::from_value(json!({"force": true, "coverage": 0.72, "range": [0.0, 0.020000000000000004]})).unwrap();
+        assert_eq!(force.coverage, Some(0.72));
+        assert_eq!(force.range().unwrap().end, 0.020000000000000004);
+
+        let rollout: GrowthBookFeatureRuleRollout = serde_json::from_value(json!({"force": true, "coverage": 0.72, "range": [0.0, 0.020000000000000004]})).unwrap();
+        assert_eq!(rollout.coverage, 0.72);
+        assert_eq!(rollout.range().unwrap().end, 0.020000000000000004);
+
+        let experiment: GrowthBookFeatureRuleExperiment =
+            serde_json::from_value(json!({"variations": [0, 1], "coverage": 0.72, "weights": [0.1, 0.9], "ranges": [[0.0, 0.020000000000000004], [0.5, 1.0]]})).unwrap();
+        assert_eq!(experiment.coverage, Some(0.72));
+        assert_eq!(experiment.weights, Some(vec![0.1, 0.9]));
+        assert_eq!(experiment.ranges()[0].end, 0.020000000000000004);
+        assert_eq!(experiment.model_experiment().weights, Some(vec![0.1, 0.9]));
+    }
 }

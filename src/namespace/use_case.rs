@@ -56,8 +56,8 @@ mod test {
         name: String,
         user_value: String,
         namespace_name: String,
-        range_start: f32,
-        range_end: f32,
+        range_start: f64,
+        range_end: f64,
         result: bool,
     }
 
@@ -68,8 +68,8 @@ mod test {
                 name: array[0].as_str().expect("Failed to convert do str").to_string(),
                 user_value: array[1].as_str().expect("Failed to convert do str").to_string(),
                 namespace_name: array[2].as_array().expect("Failed to convert to array")[0].as_str().expect("Failed to convert to str").to_string(),
-                range_start: array[2].as_array().expect("Failed to convert to array")[1].as_f64().expect("Failed to convert to str") as f32,
-                range_end: array[2].as_array().expect("Failed to convert to array")[2].as_f64().expect("Failed to convert to str") as f32,
+                range_start: array[2].as_array().expect("Failed to convert to array")[1].as_f64().expect("Failed to convert to str"),
+                range_end: array[2].as_array().expect("Failed to convert to array")[2].as_f64().expect("Failed to convert to str"),
                 result: array[3].as_bool().expect("Failed to convert do bool"),
             }
         }

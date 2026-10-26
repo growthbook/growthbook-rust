@@ -9,7 +9,7 @@ pub struct Coverage;
 impl Coverage {
     pub fn check(
         value: &GrowthBookAttributeValue,
-        option_coverage: Option<f32>,
+        option_coverage: Option<f64>,
         option_range: Option<Range>,
         feature_name: &str,
         hash_version: Option<i64>,
