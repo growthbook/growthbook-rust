@@ -219,7 +219,8 @@ impl From<Value> for GrowthBookAttributeValue {
             GrowthBookAttributeValue::Bool(value.as_bool().unwrap_or_default())
         } else if value.is_i64() {
             GrowthBookAttributeValue::Int(value.as_i64().unwrap_or_default())
-        } else if value.is_f64() {
+        } else if value.is_number() {
+            // Floats, and unsigned integers beyond i64, which JS reads as the nearest double.
             GrowthBookAttributeValue::Float(value.as_f64().unwrap_or_default())
         } else if value.is_array() {
             let vec: Vec<GrowthBookAttributeValue> = value.as_array().unwrap_or(&vec![]).iter().map(|item| GrowthBookAttributeValue::from(item.clone())).collect();

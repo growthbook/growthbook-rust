@@ -151,3 +151,10 @@ async fn elem_match_conditions_see_array_element_indices_and_length() {
     assert!(evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 1}]}}}), json!({"x": [[1]]})).await);
     assert!(!evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 2}]}}}), json!({"x": [[1]]})).await);
 }
+
+#[tokio::test]
+async fn unsigned_attributes_beyond_i64_are_numbers() {
+    let big = json!(9_223_372_036_854_775_808_u64);
+    assert!(!evaluate(json!({"x": {"$eq": null}}), json!({"x": big})).await);
+    assert!(evaluate(json!({"x": {"$gt": 1}}), json!({"x": big})).await);
+}

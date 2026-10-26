@@ -112,3 +112,15 @@ fn elem_match_conditions_see_array_element_indices_and_length() {
     );
     assert_eq!(reduced_rules(json!({"x": [[1]]}), json!({"x": {"$elemMatch": {"$or": [{"0": 1}]}}})), json!([{"force": true}]));
 }
+
+#[test]
+fn unsigned_numbers_beyond_i64_stay_numbers() {
+    let big = json!(9_223_372_036_854_775_808_u64);
+    assert_eq!(prune_condition(&json!({"x": big}), &json!({"x": {"$eq": null}}), &json!({})), Value::Bool(false));
+    assert_eq!(prune_condition(&json!({"x": big}), &json!({"x": {"$exists": true}}), &json!({})), Value::Bool(true));
+    assert_eq!(prune_condition(&json!({"x": big}), &json!({"x": {"$gt": 1}}), &json!({})), Value::Bool(true));
+    assert_eq!(prune_condition(&json!({"x": 9.3e18}), &json!({"x": {"$gt": big}}), &json!({})), Value::Bool(true));
+    assert_eq!(prune_condition(&json!({"x": 1}), &json!({"x": {"$lt": big}}), &json!({})), Value::Bool(true));
+    assert_eq!(prune_condition(&json!({"x": big}), &json!({"x": {"$eq": 9_223_372_036_854_775_808.0}}), &json!({})), Value::Bool(true));
+    assert_ne!(reduced_rules(json!({"x": big}), json!({"x": {"$eq": null}})), json!([{"force": true}]));
+}
