@@ -124,3 +124,13 @@ fn unsigned_numbers_beyond_i64_stay_numbers() {
     assert_eq!(prune_condition(&json!({"x": big}), &json!({"x": {"$eq": 9_223_372_036_854_775_808.0}}), &json!({})), Value::Bool(true));
     assert_ne!(reduced_rules(json!({"x": big}), json!({"x": {"$eq": null}})), json!([{"force": true}]));
 }
+
+#[test]
+fn numeric_versions_use_js_number_strings() {
+    // JS pads String(n): 1e-7 is "1e-7" (version "1"), and 1e21 / 1e22 are "1e+21" / "1e+22" (both "1e")
+    for (attribute, condition) in [(json!(1e-7), json!({"$vgt": 1.5})), (json!(1e21), json!({"$veq": 1e22})), (json!(0.000002), json!({"$vlt": 1e-7}))] {
+        let condition = json!({"x": condition});
+        assert_eq!(prune_condition(&json!({"x": attribute}), &condition, &json!({})), Value::Bool(true), "{attribute} {condition}");
+    }
+    assert_eq!(reduced_rules(json!({"x": 1e-7}), json!({"x": {"$vgt": 1.5}})), json!([{"force": true}]));
+}

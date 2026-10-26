@@ -158,3 +158,9 @@ async fn unsigned_attributes_beyond_i64_are_numbers() {
     assert!(!evaluate(json!({"x": {"$eq": null}}), json!({"x": big})).await);
     assert!(evaluate(json!({"x": {"$gt": 1}}), json!({"x": big})).await);
 }
+
+#[tokio::test]
+async fn numeric_versions_use_js_number_strings() {
+    assert!(evaluate(json!({"x": {"$vgt": 1.5}}), json!({"x": 1e-7})).await);
+    assert!(evaluate(json!({"x": {"$veq": 1e22}}), json!({"x": 1e21})).await);
+}
