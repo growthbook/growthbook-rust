@@ -19,6 +19,8 @@ impl OperatorCondition {
             (GrowthBookAttributeValue::Object(it), Some(_)) if is_operator_object(it) => all_of(it.iter().map(|next| recursive(parent_attribute, next, ctx))),
             // Any other value is an implicit equality check on the attribute.
             (expected, Some(parent)) => implicit_equals(&parent.key, expected, ctx),
+            // JS throws on `{"$not": null}`
+            (GrowthBookAttributeValue::Empty, None) => return malformed(ctx),
             _ => return Some(false),
         };
         result.map(|it| !it)
@@ -32,6 +34,7 @@ impl OperatorCondition {
     ) -> Tri {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(it) => all_of(it.iter().map(|next| each_condition(next, ctx, recursive))),
+            GrowthBookAttributeValue::Empty => malformed(ctx),
             _ => Some(false),
         }
     }
@@ -44,6 +47,7 @@ impl OperatorCondition {
     ) -> Tri {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))).map(|it| !it),
+            GrowthBookAttributeValue::Empty => malformed(ctx),
             _ => Some(false),
         }
     }
@@ -164,7 +168,7 @@ impl OperatorCondition {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(it) if it.is_empty() => Some(true),
             GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))),
-            // A malformed list, including null, fails like a condition that throws in JS.
+            GrowthBookAttributeValue::Empty => malformed(ctx),
             _ => Some(false),
         }
     }
@@ -200,8 +204,16 @@ fn each_condition(
 ) -> Tri {
     match condition {
         GrowthBookAttributeValue::Object(fields) => all_of(fields.iter().map(|field| recursive(None, field, ctx))),
+        GrowthBookAttributeValue::Empty => malformed(ctx),
         _ => Some(false),
     }
+}
+
+/// A part JS throws on, such as a null `$or` list or a null condition in one.
+/// It fails the whole condition, so `$not` and `$nor` can't turn it into a pass.
+fn malformed(ctx: &ConditionEvalContext) -> Tri {
+    ctx.set_malformed();
+    Some(false)
 }
 
 /// Whether the attribute is in a legacy or list saved group, and whether the

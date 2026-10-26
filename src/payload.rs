@@ -3,12 +3,13 @@
 //! bootstrapped with less data. Ports `pruneCondition` and `reducePayload` from
 //! the JavaScript SDK.
 
+use std::cell::Cell;
 use std::collections::{BTreeMap, HashSet};
 
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-use crate::condition::eval_context::{saved_groups_from_value, ConditionEvalContext, SavedGroups};
+use crate::condition::eval_context::{saved_groups_from_value, ConditionEvalContext, SavedGroups, MAX_SAVED_GROUP_DEPTH, MAX_SAVED_GROUP_EVALUATIONS};
 use crate::condition::use_case::evaluate;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
 
@@ -58,7 +59,7 @@ pub fn prune_condition(
     condition: &Value,
     saved_groups: &Value,
 ) -> Value {
-    Pruner::new(attributes, saved_groups).prune(condition, &HashSet::new())
+    Pruner::new(attributes, saved_groups).prune_root(condition)
 }
 
 /// Shrink a decrypted features payload for a user whose attributes are only
@@ -116,7 +117,7 @@ pub fn reduce_payload(
                 .into_iter()
                 .filter_map(|mut context| {
                     let condition = context.get("condition").filter(|it| is_truthy(it)).cloned().unwrap_or_else(|| json!({}));
-                    let pruned = pruner.prune(&condition, &HashSet::new());
+                    let pruned = pruner.prune_root(&condition);
                     if pruned == Value::Bool(false) {
                         return None;
                     }
@@ -151,7 +152,8 @@ pub fn reduce_payload(
     Value::Object(reduced)
 }
 
-/// A condition JS would throw on. Pruning leaves the whole condition as written.
+/// A condition JS would throw on, or one that hits the evaluator's saved-group
+/// limits. Pruning leaves the whole condition as written.
 struct Malformed;
 
 struct Pruner<'a> {
@@ -159,6 +161,9 @@ struct Pruner<'a> {
     attribute_list: Vec<GrowthBookAttribute>,
     saved_groups: &'a Value,
     typed_groups: SavedGroups,
+    /// Saved groups entered while pruning one condition, shared with the
+    /// evaluations it runs, as in the evaluator.
+    group_evaluations: Cell<usize>,
 }
 
 impl<'a> Pruner<'a> {
@@ -175,7 +180,26 @@ impl<'a> Pruner<'a> {
             attributes,
             saved_groups,
             typed_groups: saved_groups_from_value(Some(saved_groups)),
+            group_evaluations: Cell::new(0),
         }
+    }
+
+    /// Prune a whole condition, with a fresh saved-group work limit.
+    fn prune_root(
+        &self,
+        condition: &Value,
+    ) -> Value {
+        self.group_evaluations.set(0);
+        self.prune(condition, &HashSet::new())
+    }
+
+    /// Prune a saved group's own condition, with a fresh saved-group work limit.
+    fn prune_root_group(
+        &self,
+        reference: &Value,
+    ) -> Result<Value, Malformed> {
+        self.group_evaluations.set(0);
+        self.prune_saved_group(reference, &HashSet::new(), true)
     }
 
     fn prune(
@@ -199,7 +223,7 @@ impl<'a> Pruner<'a> {
         let Some(condition) = fields.get("condition").filter(|it| is_truthy(it)) else {
             return item;
         };
-        match self.prune(condition, &HashSet::new()) {
+        match self.prune_root(condition) {
             Value::Bool(true) => {
                 fields.remove("condition");
             },
@@ -237,7 +261,7 @@ impl<'a> Pruner<'a> {
                 },
                 // Null when the attribute is unknown, or the value uses an
                 // operator this SDK doesn't support, which the client's SDK may
-                _ if self.is_known(&key) => match self.evaluate(&key, &value) {
+                _ if self.is_known(&key) => match self.evaluate(&key, &value, visited)? {
                     Some(result) => Value::Bool(result),
                     None => Value::Null,
                 },
@@ -309,6 +333,13 @@ impl<'a> Pruner<'a> {
         if visited.contains(id) {
             return Ok(Value::Bool(false));
         }
+        // The evaluator's limits fail the whole condition, so a condition that
+        // reaches them can't be decided here: it stays as written
+        let evaluations = self.group_evaluations.get() + 1;
+        if evaluations > MAX_SAVED_GROUP_EVALUATIONS || visited.len() >= MAX_SAVED_GROUP_DEPTH {
+            return Err(Malformed);
+        }
+        self.group_evaluations.set(evaluations);
         let attribute_key = match reference.get("attributeKey") {
             None => None,
             Some(Value::String(key)) => Some(key.as_str()),
@@ -361,13 +392,20 @@ impl<'a> Pruner<'a> {
         !path.contains('.') && self.attributes.contains_key(path)
     }
 
+    /// Evaluate a known attribute, continuing the current saved-group path.
     fn evaluate(
         &self,
         key: &str,
         value: &Value,
-    ) -> Option<bool> {
+        visited: &HashSet<String>,
+    ) -> Result<Option<bool>, Malformed> {
         let condition = [GrowthBookAttribute::new(key.to_owned(), GrowthBookAttributeValue::from(value.clone()))];
-        evaluate(&condition, &self.context())
+        let ctx = ConditionEvalContext::within(&self.attribute_list, &self.typed_groups, visited.clone(), &self.group_evaluations);
+        let result = evaluate(&condition, &ctx);
+        if ctx.work_limit_exceeded() || ctx.is_malformed() {
+            return Err(Malformed);
+        }
+        Ok(result)
     }
 
     fn context(&self) -> ConditionEvalContext<'_> {
@@ -625,7 +663,7 @@ fn keep_groups(
             // depends on which group the evaluation entered the cycle from
             let reduce = !as_written.contains(id.as_str()) && !reaches(id, id, pruner.saved_groups, &mut HashSet::new());
             let reference = json!({"id": id});
-            let pruned = if reduce { pruner.prune_saved_group(&reference, &HashSet::new(), true) } else { Err(Malformed) };
+            let pruned = if reduce { pruner.prune_root_group(&reference) } else { Err(Malformed) };
             let kept = match pruned {
                 Ok(condition @ Value::Object(_)) => {
                     let mut entry = entry.clone();

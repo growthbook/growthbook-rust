@@ -127,3 +127,20 @@ async fn malformed_logical_operators_fail() {
         assert!(!evaluate(condition.clone(), json!({"id": "123"})).await, "{condition}");
     }
 }
+
+#[tokio::test]
+async fn malformed_conditions_fail_under_negation() {
+    // JS throws on each of these, which fails the whole condition, so $not and $nor can't pass them
+    for condition in [
+        json!({"$not": {"$or": null}}),
+        json!({"$nor": [{"$or": null}]}),
+        json!({"$not": {"$and": null}}),
+        json!({"$nor": [null]}),
+        json!({"$nor": [{"$not": null}]}),
+        json!({"$not": {"$nor": [{"$or": [null]}]}}),
+    ] {
+        assert!(!evaluate(condition.clone(), json!({"id": "123"})).await, "{condition}");
+    }
+    // An $or that passes before reaching a malformed branch still passes, as in JS
+    assert!(evaluate(json!({"$or": [{"id": "123"}, {"$or": null}]}), json!({"id": "123"})).await);
+}

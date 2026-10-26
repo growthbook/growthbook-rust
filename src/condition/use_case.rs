@@ -56,7 +56,7 @@ impl ConditionsMatchesAttributes for Vec<GrowthBookAttribute> {
         &self,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        !ctx.work_limit_exceeded() && evaluate(self, ctx) == Some(true) && !ctx.work_limit_exceeded()
+        !ctx.work_limit_exceeded() && evaluate(self, ctx) == Some(true) && !ctx.work_limit_exceeded() && !ctx.is_malformed()
     }
 }
 
@@ -73,7 +73,7 @@ fn verify(
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
 ) -> Tri {
-    if ctx.work_limit_exceeded() {
+    if ctx.work_limit_exceeded() || ctx.is_malformed() {
         return Some(false);
     }
     let decided = |result: bool| Some(result);
