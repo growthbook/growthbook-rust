@@ -14,6 +14,7 @@ mod hash;
 mod infra;
 pub mod model_public;
 mod namespace;
+pub mod payload;
 mod range;
 pub mod sticky_bucket;
 
