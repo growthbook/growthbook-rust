@@ -4,7 +4,7 @@
 //! the JavaScript SDK.
 
 use std::cell::Cell;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -136,10 +136,9 @@ pub fn reduce_payload(
     // condition groups reduced. This needs no list of the operators that
     // reference groups.
     let roots = Value::Array(vec![Value::Object(features.clone()), Value::Array(experiments.clone()), Value::Object(bandits.clone())]);
-    let mut marks = GroupMarks::default();
-    marks.mark(&roots, &saved_groups, true);
-    let mut groups = Map::new();
-    keep_groups(&roots, &pruner, &marks.as_written, &mut groups);
+    let refs = GroupRefs::new(&saved_groups);
+    let as_written = as_written_groups(&roots, &saved_groups, &refs);
+    let groups = keep_groups(&roots, &pruner, &as_written, &refs);
 
     let mut reduced = payload.as_object().cloned().unwrap_or_default();
     reduced.insert(String::from("features"), Value::Object(features));
@@ -579,106 +578,177 @@ impl Reducer<'_> {
     }
 }
 
+/// The saved groups each group references, found once. `false` marks a
+/// reference evaluated against something other than the user: inside
+/// `$elemMatch`, or a prerequisite's `parentConditions`.
+struct GroupRefs {
+    refs: HashMap<String, Vec<(String, bool)>>,
+    /// Groups that reference themselves, directly or through other groups.
+    cyclic: HashSet<String>,
+}
+
+impl GroupRefs {
+    fn new(saved_groups: &Value) -> Self {
+        let mut refs = HashMap::new();
+        for (id, entry) in saved_groups.as_object().into_iter().flatten() {
+            let mut found = vec![];
+            collect_refs(entry, saved_groups, true, &mut found);
+            refs.insert(id.clone(), found);
+        }
+        let cyclic = cyclic_groups(&refs);
+        Self { refs, cyclic }
+    }
+
+    fn of(
+        &self,
+        id: &str,
+    ) -> &[(String, bool)] {
+        self.refs.get(id).map(Vec::as_slice).unwrap_or_default()
+    }
+
+    fn on_cycle(
+        &self,
+        id: &str,
+    ) -> bool {
+        self.cyclic.contains(id)
+    }
+}
+
+/// The groups on a reference cycle: those in a strongly connected component
+/// with more than one group, or that reference themselves. Kosaraju's
+/// algorithm with work lists rather than recursion, so a long chain can't
+/// exhaust the stack.
+fn cyclic_groups(refs: &HashMap<String, Vec<(String, bool)>>) -> HashSet<String> {
+    let children = |id: &str| refs.get(id).into_iter().flatten().map(|(child, _)| child.as_str());
+
+    // Finish order of a depth-first search
+    let mut order = vec![];
+    let mut visited = HashSet::new();
+    for root in refs.keys() {
+        if !visited.insert(root.as_str()) {
+            continue;
+        }
+        let mut stack = vec![(root.as_str(), children(root).collect::<Vec<_>>().into_iter())];
+        while let Some((id, next)) = stack.last_mut() {
+            match next.next() {
+                Some(child) if visited.insert(child) => {
+                    let grandchildren = children(child).collect::<Vec<_>>().into_iter();
+                    stack.push((child, grandchildren));
+                },
+                Some(_) => {},
+                None => {
+                    order.push(*id);
+                    stack.pop();
+                },
+            }
+        }
+    }
+
+    // Components of the reversed graph, in reverse finish order
+    let mut parents: HashMap<&str, Vec<&str>> = HashMap::new();
+    for (id, list) in refs {
+        for (child, _) in list {
+            parents.entry(child.as_str()).or_default().push(id.as_str());
+        }
+    }
+    let mut cyclic = HashSet::new();
+    let mut assigned = HashSet::new();
+    for root in order.into_iter().rev() {
+        if !assigned.insert(root) {
+            continue;
+        }
+        let mut component = vec![root];
+        let mut pending = vec![root];
+        while let Some(id) = pending.pop() {
+            for parent in parents.get(id).into_iter().flatten() {
+                if assigned.insert(parent) {
+                    component.push(parent);
+                    pending.push(parent);
+                }
+            }
+        }
+        if component.len() > 1 || children(root).any(|child| child == root) {
+            cyclic.extend(component.into_iter().map(str::to_owned));
+        }
+    }
+    cyclic
+}
+
+/// The saved group ids in a value, and whether each is evaluated against the user.
+fn collect_refs(
+    value: &Value,
+    saved_groups: &Value,
+    user: bool,
+    found: &mut Vec<(String, bool)>,
+) {
+    match value {
+        Value::String(id) if saved_groups.get(id.as_str()).is_some() => found.push((id.clone(), user)),
+        Value::Array(items) => items.iter().for_each(|item| collect_refs(item, saved_groups, user, found)),
+        Value::Object(fields) => {
+            for (key, item) in fields {
+                collect_refs(item, saved_groups, user && key != "$elemMatch" && key != "parentConditions", found);
+            }
+        },
+        _ => {},
+    }
+}
+
 /// Saved groups that keep their condition as written: those evaluated against
 /// something other than the user (each item in `$elemMatch`, or the parent's
 /// value in a prerequisite), and the groups those reference.
-#[derive(Default)]
-struct GroupMarks {
-    as_written: HashSet<String>,
-    seen: HashSet<String>,
-}
-
-impl GroupMarks {
-    fn mark(
-        &mut self,
-        value: &Value,
-        saved_groups: &Value,
-        user: bool,
-    ) {
-        match value {
-            Value::String(id) => {
-                let Some(entry) = saved_groups.get(id.as_str()) else {
-                    return;
-                };
-                if self.as_written.contains(id) || (user && self.seen.contains(id)) {
-                    return;
-                }
-                if user { &mut self.seen } else { &mut self.as_written }.insert(id.clone());
-                self.mark(entry, saved_groups, user);
-            },
-            Value::Array(items) => items.iter().for_each(|item| self.mark(item, saved_groups, user)),
-            Value::Object(fields) => {
-                for (key, item) in fields {
-                    self.mark(item, saved_groups, user && key != "$elemMatch" && key != "parentConditions");
-                }
-            },
-            _ => {},
+fn as_written_groups(
+    roots: &Value,
+    saved_groups: &Value,
+    refs: &GroupRefs,
+) -> HashSet<String> {
+    let mut as_written = HashSet::new();
+    let mut seen = HashSet::new();
+    let mut pending = vec![];
+    collect_refs(roots, saved_groups, true, &mut pending);
+    while let Some((id, user)) = pending.pop() {
+        if as_written.contains(&id) || (user && seen.contains(&id)) {
+            continue;
         }
+        if user { &mut seen } else { &mut as_written }.insert(id.clone());
+        pending.extend(refs.of(&id).iter().map(|(child, child_user)| (child.clone(), user && *child_user)));
     }
+    as_written
 }
 
-/// The saved group ids anywhere in a value.
-fn group_ids<'v>(
-    value: &'v Value,
-    saved_groups: &Value,
-    found: &mut Vec<&'v str>,
-) {
-    match value {
-        Value::String(id) if saved_groups.get(id.as_str()).is_some() => found.push(id),
-        Value::Array(items) => items.iter().for_each(|item| group_ids(item, saved_groups, found)),
-        Value::Object(fields) => fields.values().for_each(|item| group_ids(item, saved_groups, found)),
-        _ => {},
-    }
-}
-
-/// Whether group `from` references group `to`, directly or through other groups.
-fn reaches(
-    from: &str,
-    to: &str,
-    saved_groups: &Value,
-    visited: &mut HashSet<String>,
-) -> bool {
-    let mut found = vec![];
-    if let Some(entry) = saved_groups.get(from) {
-        group_ids(entry, saved_groups, &mut found);
-    }
-    found.into_iter().any(|id| id == to || (visited.insert(id.to_owned()) && reaches(id, to, saved_groups, visited)))
-}
-
+/// Keep each saved group whose id appears as a string anywhere, with condition
+/// groups reduced unless they keep their condition as written.
 fn keep_groups(
-    value: &Value,
+    roots: &Value,
     pruner: &Pruner,
     as_written: &HashSet<String>,
-    groups: &mut Map<String, Value>,
-) {
-    match value {
-        Value::String(id) => {
-            let Some(entry) = pruner.saved_groups.get(id.as_str()) else {
-                return;
-            };
-            if groups.contains_key(id.as_str()) {
-                return;
-            }
-            // A group on a cycle can't be reduced on its own: its result
-            // depends on which group the evaluation entered the cycle from
-            let reduce = !as_written.contains(id.as_str()) && !reaches(id, id, pruner.saved_groups, &mut HashSet::new());
-            let reference = json!({"id": id});
-            let pruned = if reduce { pruner.prune_root_group(&reference) } else { Err(Malformed) };
-            let kept = match pruned {
-                Ok(condition @ Value::Object(_)) => {
-                    let mut entry = entry.clone();
-                    if let Some(fields) = entry.as_object_mut() {
-                        fields.insert(String::from("condition"), condition);
-                    }
-                    entry
-                },
-                _ => entry.clone(),
-            };
-            groups.insert(id.clone(), kept.clone());
-            keep_groups(&kept, pruner, as_written, groups);
-        },
-        Value::Array(items) => items.iter().for_each(|item| keep_groups(item, pruner, as_written, groups)),
-        Value::Object(fields) => fields.values().for_each(|item| keep_groups(item, pruner, as_written, groups)),
-        _ => {},
+    refs: &GroupRefs,
+) -> Map<String, Value> {
+    let mut groups = Map::new();
+    let mut pending = vec![];
+    collect_refs(roots, pruner.saved_groups, true, &mut pending);
+    while let Some((id, _)) = pending.pop() {
+        let Some(entry) = pruner.saved_groups.get(id.as_str()) else {
+            continue;
+        };
+        if groups.contains_key(id.as_str()) {
+            continue;
+        }
+        // A group on a cycle can't be reduced on its own: its result
+        // depends on which group the evaluation entered the cycle from
+        let reduce = !as_written.contains(&id) && !refs.on_cycle(&id);
+        let pruned = if reduce { pruner.prune_root_group(&json!({"id": id})) } else { Err(Malformed) };
+        let kept = match pruned {
+            Ok(condition @ Value::Object(_)) => {
+                let mut entry = entry.clone();
+                if let Some(fields) = entry.as_object_mut() {
+                    fields.insert(String::from("condition"), condition);
+                }
+                entry
+            },
+            _ => entry.clone(),
+        };
+        collect_refs(&kept, pruner.saved_groups, true, &mut pending);
+        groups.insert(id, kept);
     }
+    groups
 }

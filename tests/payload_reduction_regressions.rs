@@ -1,4 +1,4 @@
-use growthbook_rust::payload::prune_condition;
+use growthbook_rust::payload::{prune_condition, reduce_payload, ReducePayloadOptions};
 use serde_json::{json, Map, Value};
 
 /// A chain of condition groups where each references the next twice, ending in `{"id": "123"}`.
@@ -35,4 +35,51 @@ fn pruning_stops_at_the_saved_group_work_limit() {
     }
     // Within the limit it is still decided
     assert_eq!(prune_condition(&json!({"id": "123"}), &condition, &doubling_groups(5)), Value::Bool(true));
+}
+
+/// Run on a thread with a normal 2 MiB stack, so unbounded recursion fails the test.
+fn on_small_stack(run: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new().stack_size(2 * 1024 * 1024).spawn(run).unwrap().join().unwrap();
+}
+
+/// A chain of condition groups `g1` → `g2` → … ending in `{"country": "US"}`.
+fn chain(
+    groups: &mut Map<String, Value>,
+    length: usize,
+) {
+    for level in 1..length {
+        let next = json!({"$savedGroup": {"id": format!("g{}", level + 1)}});
+        groups.insert(format!("g{level}"), json!({"type": "condition", "condition": {"$or": [{"id": "x"}, next]}}));
+    }
+    groups.insert(format!("g{length}"), json!({"type": "condition", "condition": {"country": "US"}}));
+}
+
+#[test]
+fn long_group_chains_reduce_without_exhausting_the_stack() {
+    on_small_stack(|| {
+        // Referenced from $elemMatch, every group in the chain keeps its condition as written
+        let mut groups = Map::new();
+        chain(&mut groups, 20_000);
+        let groups = Value::Object(groups);
+        let payload = json!({
+            "features": {"f": {"defaultValue": false, "rules": [{"condition": {"items": {"$elemMatch": {"$savedGroup": {"id": "g1"}}}}, "force": true}]}},
+            "savedGroups": groups.clone(),
+        });
+        let reduced = reduce_payload(&payload, &json!({"id": "u"}), &ReducePayloadOptions::default());
+        assert_eq!(reduced["savedGroups"], groups);
+
+        // Referenced from the user's condition, an $or branch that passes drops the rest of the chain
+        let mut groups = Map::new();
+        chain(&mut groups, 20_000);
+        groups.insert(
+            String::from("g0"),
+            json!({"type": "condition", "condition": {"$and": [{"$or": [{"id": "u"}, {"$savedGroup": {"id": "g1"}}]}, {"country": "US"}]}}),
+        );
+        let payload = json!({
+            "features": {"f": {"defaultValue": false, "rules": [{"condition": {"$savedGroup": {"id": "g0"}}, "force": true}]}},
+            "savedGroups": groups,
+        });
+        let reduced = reduce_payload(&payload, &json!({"id": "u"}), &ReducePayloadOptions::default());
+        assert_eq!(reduced["savedGroups"], json!({"g0": {"type": "condition", "condition": {"$and": [{"country": "US"}]}}}));
+    });
 }
