@@ -164,7 +164,7 @@ impl OperatorCondition {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(it) if it.is_empty() => Some(true),
             GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))),
-            GrowthBookAttributeValue::Empty => Some(true),
+            // A malformed list, including null, fails like a condition that throws in JS.
             _ => Some(false),
         }
     }

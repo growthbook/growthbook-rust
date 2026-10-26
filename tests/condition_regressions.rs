@@ -120,3 +120,10 @@ async fn unknown_operators_fail_under_negation() {
     // A known operator that fails still decides the condition, and an $or another condition passes.
     assert!(evaluate(json!({"$or": [{"x": {"$future": 1}}, {"y": 1}]}), json!({"y": 1})).await);
 }
+
+#[tokio::test]
+async fn malformed_logical_operators_fail() {
+    for condition in [json!({"$or": null, "id": "123"}), json!({"$and": null}), json!({"$nor": "x"}), json!({"$or": [null]})] {
+        assert!(!evaluate(condition.clone(), json!({"id": "123"})).await, "{condition}");
+    }
+}
