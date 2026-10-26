@@ -83,3 +83,32 @@ fn long_group_chains_reduce_without_exhausting_the_stack() {
         assert_eq!(reduced["savedGroups"], json!({"g0": {"type": "condition", "condition": {"$and": [{"country": "US"}]}}}));
     });
 }
+
+/// The rules left for feature `f` after reducing a one-rule force payload for `attributes`.
+fn reduced_rules(
+    attributes: Value,
+    condition: Value,
+) -> Value {
+    let payload = json!({"features": {"f": {"defaultValue": false, "rules": [{"condition": condition, "force": true}]}}});
+    reduce_payload(&payload, &attributes, &ReducePayloadOptions::default())["features"]["f"]["rules"].clone()
+}
+
+#[test]
+fn elem_match_conditions_see_array_element_indices_and_length() {
+    // As in JS getPath, an array element exposes its indices and length as fields
+    for condition in [
+        json!({"x": {"$elemMatch": {"$or": [{"0": 1}]}}}),
+        json!({"x": {"$elemMatch": {"$or": [{"length": 1}]}}}),
+        json!({"x": {"$elemMatch": {"$and": [{"0": 1}, {"length": {"$gt": 0}}]}}}),
+        json!({"x": {"$elemMatch": {"$nor": [{"0": 2}]}}}),
+        json!({"x": {"$elemMatch": {"$savedGroup": {"id": "g"}}}}),
+    ] {
+        let groups = json!({"g": {"type": "list", "attributeKey": "0", "values": [1]}});
+        assert_eq!(prune_condition(&json!({"x": [[1]]}), &condition, &groups), Value::Bool(true), "{condition}");
+    }
+    assert_eq!(
+        prune_condition(&json!({"x": [[1]]}), &json!({"x": {"$elemMatch": {"$or": [{"1": 1}]}}}), &json!({})),
+        Value::Bool(false)
+    );
+    assert_eq!(reduced_rules(json!({"x": [[1]]}), json!({"x": {"$elemMatch": {"$or": [{"0": 1}]}}})), json!([{"force": true}]));
+}

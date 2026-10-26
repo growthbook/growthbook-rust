@@ -144,3 +144,10 @@ async fn malformed_conditions_fail_under_negation() {
     // An $or that passes before reaching a malformed branch still passes, as in JS
     assert!(evaluate(json!({"$or": [{"id": "123"}, {"$or": null}]}), json!({"id": "123"})).await);
 }
+
+#[tokio::test]
+async fn elem_match_conditions_see_array_element_indices_and_length() {
+    assert!(evaluate(json!({"x": {"$elemMatch": {"$or": [{"0": 1}]}}}), json!({"x": [[1]]})).await);
+    assert!(evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 1}]}}}), json!({"x": [[1]]})).await);
+    assert!(!evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 2}]}}}), json!({"x": [[1]]})).await);
+}

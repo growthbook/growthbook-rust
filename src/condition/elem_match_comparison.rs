@@ -30,6 +30,8 @@ impl ElemMatchComparison {
                         matches_value(item, &feature_attribute.value, ctx, false)
                     } else if let GrowthBookAttributeValue::Object(attributes) = item {
                         evaluate(condition, &ctx.with_attributes(attributes))
+                    } else if let GrowthBookAttributeValue::Array(elements) = item {
+                        evaluate(condition, &ctx.with_attributes(&array_fields(elements)))
                     } else {
                         // Like JS getPath on a primitive, every field is missing.
                         evaluate(condition, &ctx.with_attributes(&[]))
@@ -37,4 +39,14 @@ impl ElemMatchComparison {
                 }),
         )
     }
+}
+
+/// An array's own fields as JS getPath sees them: each index, then `length`.
+fn array_fields(elements: &[GrowthBookAttributeValue]) -> Vec<GrowthBookAttribute> {
+    elements
+        .iter()
+        .enumerate()
+        .map(|(index, value)| GrowthBookAttribute::new(index.to_string(), value.clone()))
+        .chain(std::iter::once(GrowthBookAttribute::new(String::from("length"), GrowthBookAttributeValue::Int(elements.len() as i64))))
+        .collect()
 }
