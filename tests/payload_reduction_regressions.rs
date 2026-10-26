@@ -134,3 +134,62 @@ fn numeric_versions_use_js_number_strings() {
     }
     assert_eq!(reduced_rules(json!({"x": 1e-7}), json!({"x": {"$vgt": 1.5}})), json!([{"force": true}]));
 }
+
+/// Reduce a one-rule force payload with `groups` for user `u`, returning its saved groups.
+fn reduced_groups(
+    condition: Value,
+    groups: Value,
+) -> Value {
+    let payload = json!({
+        "features": {"f": {"defaultValue": false, "rules": [{"condition": condition, "force": true}]}},
+        "savedGroups": groups,
+    });
+    reduce_payload(&payload, &json!({"id": "u"}), &ReducePayloadOptions::default())["savedGroups"].clone()
+}
+
+#[test]
+fn list_group_values_never_reference_other_groups() {
+    let reduced_c = json!({"type": "condition", "condition": {"$and": [{"country": "US"}]}});
+    let c = json!({"type": "condition", "condition": {"$and": [{"id": "u"}, {"country": "US"}]}});
+
+    // A list value naming a group doesn't keep that group
+    for list in [json!({"type": "list", "attributeKey": "id", "values": ["c"]}), json!(["c"])] {
+        let groups = json!({"l": list, "c": c});
+        assert_eq!(reduced_groups(json!({"$inGroup": "l"}), groups), json!({"l": list}), "{list}");
+    }
+
+    // A list value naming the group that references the list isn't a cycle
+    let groups = json!({
+        "c": {"type": "condition", "condition": {"$and": [{"id": "u"}, {"$savedGroup": {"id": "l"}}]}},
+        "l": {"type": "list", "attributeKey": "country", "values": ["c"]},
+    });
+    assert_eq!(
+        reduced_groups(json!({"$savedGroup": {"id": "c"}}), groups)["c"]["condition"],
+        json!({"$and": [{"$savedGroup": {"id": "l"}}]})
+    );
+
+    // A list under $elemMatch doesn't make a group its values name keep its condition as written
+    let groups = json!({"l": {"type": "list", "attributeKey": "id", "values": ["c"]}, "c": c});
+    let condition = json!({"$and": [{"items": {"$elemMatch": {"$savedGroup": {"id": "l"}}}}, {"$savedGroup": {"id": "c"}}]});
+    assert_eq!(reduced_groups(condition, groups)["c"], reduced_c);
+}
+
+#[test]
+fn payload_without_saved_groups_reduces_to_none() {
+    let payload = json!({"features": {"f": {"defaultValue": false, "rules": [{"condition": {"$inGroup": "g"}, "force": true}]}}});
+    let reduced = reduce_payload(&payload, &json!({"id": "u"}), &ReducePayloadOptions::default());
+    assert_eq!(reduced["savedGroups"], json!({}));
+}
+
+#[test]
+fn contextual_bandits_are_left_out_when_the_payload_has_none() {
+    for bandits in [Value::Null, json!(false), json!(0), json!("")] {
+        let payload = json!({"features": {}, "contextualBandits": bandits});
+        let reduced = reduce_payload(&payload, &json!({}), &ReducePayloadOptions::default());
+        assert!(reduced.get("contextualBandits").is_none(), "{bandits}");
+    }
+    let reduced = reduce_payload(&json!({"features": {}}), &json!({}), &ReducePayloadOptions::default());
+    assert!(reduced.get("contextualBandits").is_none());
+    let reduced = reduce_payload(&json!({"features": {}, "contextualBandits": {}}), &json!({}), &ReducePayloadOptions::default());
+    assert_eq!(reduced["contextualBandits"], json!({}));
+}

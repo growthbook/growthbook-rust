@@ -135,18 +135,27 @@ pub fn reduce_payload(
     // Keep each saved group whose id appears as a string anywhere, with
     // condition groups reduced. This needs no list of the operators that
     // reference groups.
-    let roots = Value::Array(vec![Value::Object(features.clone()), Value::Array(experiments.clone()), Value::Object(bandits.clone())]);
-    let refs = GroupRefs::new(&saved_groups);
-    let as_written = as_written_groups(&roots, &saved_groups, &refs);
-    let groups = keep_groups(&roots, &pruner, &as_written, &refs);
+    // Walking the payload is only needed when there are groups to find
+    let has_groups = saved_groups.as_object().is_some_and(|it| !it.is_empty());
+    let groups = if has_groups {
+        let roots = Value::Array(vec![Value::Object(features.clone()), Value::Array(experiments.clone()), Value::Object(bandits.clone())]);
+        let refs = GroupRefs::new(&saved_groups);
+        let as_written = as_written_groups(&roots, &saved_groups, &refs);
+        keep_groups(&roots, &pruner, &as_written, &refs)
+    } else {
+        Map::new()
+    };
 
     let mut reduced = payload.as_object().cloned().unwrap_or_default();
     reduced.insert(String::from("features"), Value::Object(features));
     reduced.insert(String::from("experiments"), Value::Array(experiments));
     reduced.insert(String::from("savedGroups"), Value::Object(groups));
-    // Only when there were any, as with the payload's other optional keys
+    // Only when there were any, as with the payload's other optional keys.
+    // Left out rather than null, as JS leaves it out rather than undefined.
     if reduced.get("contextualBandits").is_some_and(is_truthy) {
         reduced.insert(String::from("contextualBandits"), Value::Object(bandits));
+    } else {
+        reduced.remove("contextualBandits");
     }
     Value::Object(reduced)
 }
@@ -592,7 +601,9 @@ impl GroupRefs {
         let mut refs = HashMap::new();
         for (id, entry) in saved_groups.as_object().into_iter().flatten() {
             let mut found = vec![];
-            collect_refs(entry, saved_groups, true, &mut found);
+            if can_reference(entry) {
+                collect_refs(entry, saved_groups, true, &mut found);
+            }
             refs.insert(id.clone(), found);
         }
         let cyclic = cyclic_groups(&refs);
@@ -674,6 +685,12 @@ fn cyclic_groups(refs: &HashMap<String, Vec<(String, bool)>>) -> HashSet<String>
     cyclic
 }
 
+/// Whether a saved group's contents can reference other groups. A list's
+/// values (or a legacy bare array's) are attribute values, never group ids.
+fn can_reference(entry: &Value) -> bool {
+    entry.as_object().is_some_and(|it| it.get("type").and_then(Value::as_str) != Some("list"))
+}
+
 /// The saved group ids in a value, and whether each is evaluated against the user.
 fn collect_refs(
     value: &Value,
@@ -747,7 +764,9 @@ fn keep_groups(
             },
             _ => entry.clone(),
         };
-        collect_refs(&kept, pruner.saved_groups, true, &mut pending);
+        if can_reference(&kept) {
+            collect_refs(&kept, pruner.saved_groups, true, &mut pending);
+        }
         groups.insert(id, kept);
     }
     groups
