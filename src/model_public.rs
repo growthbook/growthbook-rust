@@ -38,7 +38,10 @@ pub enum SavedGroup {
     },
     /// A v2 condition evaluated against the current attributes.
     Condition(Vec<GrowthBookAttribute>),
-    /// A malformed entry or a group type this SDK does not recognize.
+    /// A group type added after this SDK was built. Conditions that depend on
+    /// it fail, even under `$not` and `$nor`, since the result is unknown.
+    Unknown,
+    /// A malformed entry.
     Invalid,
 }
 
@@ -58,6 +61,7 @@ impl From<&Value> for SavedGroup {
                 .and_then(|condition| GrowthBookAttribute::from(condition.clone()).ok())
                 .map(Self::Condition)
                 .unwrap_or(Self::Invalid),
+            _ if entry.is_object() => Self::Unknown,
             _ => Self::Invalid,
         }
     }

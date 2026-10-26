@@ -98,3 +98,25 @@ async fn string_order_uses_utf16_code_units() {
     assert!(!evaluate(json!({"x": {"$gt": "\u{E000}"}}), attributes.clone()).await);
     assert!(!evaluate(json!({"x": {"$gte": "\u{E000}"}}), attributes).await);
 }
+
+#[tokio::test]
+async fn elem_match_conditions_treat_primitive_elements_as_objects_without_fields() {
+    // Like JS getPath on a primitive, every field of a non-object element is missing.
+    assert!(evaluate(json!({"tags": {"$elemMatch": {"$nor": [{"name": "x"}]}}}), json!({"tags": [5]})).await);
+    assert!(!evaluate(json!({"tags": {"$elemMatch": {"$or": [{"name": "x"}]}}}), json!({"tags": ["x"]})).await);
+    assert!(evaluate(json!({"tags": {"$elemMatch": {"$or": [{"name": "x"}]}}}), json!({"tags": [5, {"name": "x"}]})).await);
+}
+
+#[tokio::test]
+async fn unknown_operators_fail_under_negation() {
+    for condition in [
+        json!({"$not": {"x": {"$future": 1}}}),
+        json!({"$nor": [{"x": {"$future": 1}}]}),
+        json!({"x": {"$not": {"$future": 1}}}),
+        json!({"x": {"$elemMatch": {"$future": 1}}}),
+    ] {
+        assert!(!evaluate(condition.clone(), json!({"x": [1]})).await, "{condition}");
+    }
+    // A known operator that fails still decides the condition, and an $or another condition passes.
+    assert!(evaluate(json!({"$or": [{"x": {"$future": 1}}, {"y": 1}]}), json!({"y": 1})).await);
+}

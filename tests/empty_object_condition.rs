@@ -2,12 +2,10 @@ use growthbook_rust::client::{GrowthBookClientBuilder, GrowthBookClientTrait};
 use growthbook_rust::model_public::GrowthBookAttribute;
 use serde_json::json;
 
-// R4: a non-operator condition `{x: {}}` is a deep-equality check. It must match
-// only when the user's `x` is itself an empty object `{}`, not when `x` is
-// missing. After empty objects started deserializing to `Object([])` (R4), the
-// previous branch had the logic inverted (matched on a missing attribute).
+// Spec 0.11.0: a condition value of `{}` has no operators, so it passes for
+// every value of the attribute, including a missing one.
 #[tokio::test]
-async fn empty_object_condition_matches_only_empty_object() {
+async fn empty_object_condition_always_passes() {
     let features_json = json!({
         "eq-empty-object": {
             "defaultValue": false,
@@ -19,19 +17,10 @@ async fn empty_object_condition_matches_only_empty_object() {
 
     let attrs = |value: serde_json::Value| GrowthBookAttribute::from(json!({ "x": value })).unwrap();
 
-    // {x: {}} → matches an empty object
-    assert!(client.is_on("eq-empty-object", Some(attrs(json!({})))), "condition {{x: {{}}}} must match user x = {{}}");
+    for value in [json!({}), json!({ "a": 1 }), json!(null), json!(0), json!("x"), json!([])] {
+        assert!(client.is_on("eq-empty-object", Some(attrs(value.clone()))), "condition {{x: {{}}}} must match x = {value}");
+    }
 
-    // A non-empty object must NOT match (deep equality fails)
-    assert!(
-        !client.is_on("eq-empty-object", Some(attrs(json!({ "a": 1 })))),
-        "condition {{x: {{}}}} must not match a non-empty object"
-    );
-
-    // null must NOT match
-    assert!(!client.is_on("eq-empty-object", Some(attrs(json!(null)))), "condition {{x: {{}}}} must not match null");
-
-    // A missing attribute must NOT match (this is the inverted-logic regression)
     let missing = GrowthBookAttribute::from(json!({ "y": 1 })).unwrap();
-    assert!(!client.is_on("eq-empty-object", Some(missing)), "condition {{x: {{}}}} must not match a missing attribute");
+    assert!(client.is_on("eq-empty-object", Some(missing)), "condition {{x: {{}}}} must match a missing attribute");
 }

@@ -1,42 +1,51 @@
 use crate::condition::eval_context::ConditionEvalContext;
-use crate::condition::use_case::{implicit_equals, is_operator_object, matches_value};
+use crate::condition::use_case::{all_of, any_of, implicit_equals, is_operator_object, matches_value, Tri};
 use crate::extensions::FindGrowthBookAttribute;
-use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue};
+use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGroup};
 
 pub struct OperatorCondition;
+
+type Recursive = fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> Tri;
 
 impl OperatorCondition {
     pub fn not(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
-    ) -> bool {
-        match (&feature_attribute.value, parent_attribute) {
-            (GrowthBookAttributeValue::Object(it), None) => !it.iter().all(|next| recursive(None, next, ctx)),
-            (GrowthBookAttributeValue::Object(it), Some(_)) if is_operator_object(it) => !it.iter().all(|next| recursive(parent_attribute, next, ctx)),
+        recursive: Recursive,
+    ) -> Tri {
+        let result = match (&feature_attribute.value, parent_attribute) {
+            (GrowthBookAttributeValue::Object(it), None) => all_of(it.iter().map(|next| recursive(None, next, ctx))),
+            (GrowthBookAttributeValue::Object(it), Some(_)) if is_operator_object(it) => all_of(it.iter().map(|next| recursive(parent_attribute, next, ctx))),
             // Any other value is an implicit equality check on the attribute.
-            (expected, Some(parent)) => !implicit_equals(&parent.key, expected, ctx),
-            _ => false,
-        }
+            (expected, Some(parent)) => implicit_equals(&parent.key, expected, ctx),
+            _ => return Some(false),
+        };
+        result.map(|it| !it)
     }
 
     pub fn and(
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
-    ) -> bool {
-        and_nor(&feature_attribute, ctx, recursive, false)
+        recursive: Recursive,
+    ) -> Tri {
+        match &feature_attribute.value {
+            GrowthBookAttributeValue::Array(it) => all_of(it.iter().map(|next| each_condition(next, ctx, recursive))),
+            _ => Some(false),
+        }
     }
 
     pub fn nor(
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
-    ) -> bool {
-        and_nor(&feature_attribute, ctx, recursive, true)
+        recursive: Recursive,
+    ) -> Tri {
+        match &feature_attribute.value {
+            GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))).map(|it| !it),
+            _ => Some(false),
+        }
     }
 
     pub fn all(
@@ -44,18 +53,20 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-    ) -> bool {
+    ) -> Tri {
         match &feature_attribute.value {
             GrowthBookAttributeValue::Array(feature_values) => {
                 if let Some(GrowthBookAttributeValue::Array(user_values)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    feature_values
-                        .iter()
-                        .all(|feature_item| user_values.iter().any(|user_item| matches_value(user_item, feature_item, ctx, case_insensitive)))
+                    all_of(
+                        feature_values
+                            .iter()
+                            .map(|feature_item| any_of(user_values.iter().map(|user_item| matches_value(user_item, feature_item, ctx, case_insensitive)))),
+                    )
                 } else {
-                    false
+                    Some(false)
                 }
             },
-            _ => false,
+            _ => Some(false),
         }
     }
 
@@ -63,16 +74,14 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
-        !Self::eq(parent_attribute, feature_attribute, ctx, recursive)
+        !Self::eq(parent_attribute, feature_attribute, ctx)
     }
 
     pub fn eq(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         // JS `===`: no coercion between types, and arrays and objects are
         // never equal to a condition value. `Int`/`Float` are one JS `number`
@@ -88,7 +97,6 @@ impl OperatorCondition {
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         if let GrowthBookAttributeValue::Bool(it) = feature_attribute.value {
             // Like JS `actual != null`, a present null does not exist.
@@ -110,7 +118,6 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        _recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         let GrowthBookAttributeValue::Array(members) = &feature_attribute.value else {
             return false;
@@ -124,62 +131,41 @@ impl OperatorCondition {
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
         case_insensitive: bool,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
     ) -> bool {
         if !matches!(feature_attribute.value, GrowthBookAttributeValue::Array(_)) {
             return false;
         }
-        !Self::is_in(parent_attribute, feature_attribute, ctx, case_insensitive, recursive)
+        !Self::is_in(parent_attribute, feature_attribute, ctx, case_insensitive)
     }
 
     pub fn in_group(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-    ) -> bool {
-        // The condition value is a saved-group id; look it up and test membership.
-        if let GrowthBookAttributeValue::String(group_id) = &feature_attribute.value {
-            if let Some(members) = ctx.saved_group_values(group_id) {
-                let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
-                return value_in_members(&user_value, members, false);
-            }
-        }
-        false
+    ) -> Tri {
+        group_membership(parent_attribute, feature_attribute, ctx).map(|(found, _)| found)
     }
 
     pub fn not_in_group(
         parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-    ) -> bool {
-        if let GrowthBookAttributeValue::String(group_id) = &feature_attribute.value {
-            if let Some(members) = ctx.saved_group_values(group_id) {
-                let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
-                return !value_in_members(&user_value, members, false);
-            }
-        }
-        false
+    ) -> Tri {
+        // No values means matching nobody. An empty list would pass everyone.
+        group_membership(parent_attribute, feature_attribute, ctx).map(|(found, listed)| listed && !found)
     }
 
     pub fn or(
         _parent_attribute: Option<&GrowthBookAttribute>,
         feature_attribute: &GrowthBookAttribute,
         ctx: &ConditionEvalContext,
-        recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
-    ) -> bool {
+        recursive: Recursive,
+    ) -> Tri {
         match &feature_attribute.value {
-            GrowthBookAttributeValue::Array(it) => {
-                if it.is_empty() {
-                    true
-                } else {
-                    it.iter().any(|next_value| match next_value {
-                        GrowthBookAttributeValue::Object(feature_value) => feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx)),
-                        _ => false,
-                    })
-                }
-            },
-            GrowthBookAttributeValue::Empty => true,
-            _ => false,
+            GrowthBookAttributeValue::Array(it) if it.is_empty() => Some(true),
+            GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))),
+            GrowthBookAttributeValue::Empty => Some(true),
+            _ => Some(false),
         }
     }
 }
@@ -206,24 +192,35 @@ pub(super) fn value_in_members(
     }
 }
 
-fn and_nor(
-    feature_attribute: &&GrowthBookAttribute,
+/// One condition of an `$and`, `$or`, or `$nor` list. Anything but an object fails.
+fn each_condition(
+    condition: &GrowthBookAttributeValue,
     ctx: &ConditionEvalContext,
-    recursive: fn(Option<&GrowthBookAttribute>, &GrowthBookAttribute, &ConditionEvalContext) -> bool,
-    negate: bool,
-) -> bool {
-    match &feature_attribute.value {
-        GrowthBookAttributeValue::Array(it) => it.iter().all(|next_value| match next_value {
-            GrowthBookAttributeValue::Object(feature_value) => {
-                let result = feature_value.iter().all(|next_attribute| recursive(None, next_attribute, ctx));
-                if negate {
-                    !result
-                } else {
-                    result
-                }
-            },
-            _ => false,
-        }),
-        _ => false,
+    recursive: Recursive,
+) -> Tri {
+    match condition {
+        GrowthBookAttributeValue::Object(fields) => all_of(fields.iter().map(|field| recursive(None, field, ctx))),
+        _ => Some(false),
     }
+}
+
+/// Whether the attribute is in a legacy or list saved group, and whether the
+/// group has values at all. `None` for a group type this SDK doesn't know.
+fn group_membership(
+    parent_attribute: Option<&GrowthBookAttribute>,
+    feature_attribute: &GrowthBookAttribute,
+    ctx: &ConditionEvalContext,
+) -> Option<(bool, bool)> {
+    // The condition value is a saved-group id; look it up and test membership.
+    let GrowthBookAttributeValue::String(group_id) = &feature_attribute.value else {
+        return Some((false, false));
+    };
+    if matches!(ctx.saved_group(group_id), Some(SavedGroup::Unknown)) {
+        return None;
+    }
+    let Some(members) = ctx.saved_group_values(group_id) else {
+        return Some((false, false));
+    };
+    let user_value = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key).unwrap_or(GrowthBookAttributeValue::Empty);
+    Some((value_in_members(&user_value, members, false), true))
 }
