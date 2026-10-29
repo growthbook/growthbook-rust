@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
-use crate::extensions::{non_empty, truthy, FindGrowthBookAttribute, JsonHelper};
+use crate::extensions::{hashable, non_empty, FindGrowthBookAttribute, JsonHelper};
 use crate::feature::resolve_hash_attribute;
 use crate::hash::{HashCode, HashCodeVersion};
 use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute, GrowthBookAttributeValue};
@@ -23,6 +23,12 @@ impl GrowthBookFeatureRuleExperiment {
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
         saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
+        // JS runExperiment step 1: an experiment with fewer than two
+        // variations isn't run, so the rule is skipped.
+        if self.variations.len() < 2 {
+            return None;
+        }
+
         // JS `getHashAttribute`: the fallback attribute only applies when a
         // sticky bucket service is configured and the rule doesn't disable
         // sticky bucketing; a missing hash value skips the rule.
@@ -59,13 +65,13 @@ impl GrowthBookFeatureRuleExperiment {
 
                 // JS getStickyBucketAssignments resolves the fallback doc key
                 // via getHashAttribute(ctx, expFallbackAttribute), so an
-                // omitted fallbackAttribute still reads the "id" doc, and a
-                // falsy value (`fallbackValue ? ... : null`) reads no doc at
+                // omitted fallbackAttribute still reads the "id" doc, and an
+                // unhashable value (`fallbackValue ? ... : null`) reads no doc at
                 // all. Lookup only — hashing never falls back to "id" (see
                 // resolve_hash_attribute).
                 let fallback_attribute = non_empty(&self.fallback_attribute).cloned().unwrap_or(String::from("id"));
                 let fallback_value = if fallback_attribute != feature_attribute {
-                    user_attributes.find_value(&fallback_attribute).filter(truthy)
+                    user_attributes.find_value(&fallback_attribute).filter(hashable)
                 } else {
                     None
                 };

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::error::{GrowthbookError, GrowthbookErrorCode};
-use crate::extensions::JsonHelper;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct GrowthBookAttribute {
@@ -361,19 +360,14 @@ impl FeatureResult {
     }
 }
 
+/// JS truthiness: off only for `null`, `false`, `0` and `""`. Arrays and
+/// objects are on, even when empty.
 fn is_on(value: &Value) -> bool {
-    let is_on = if value.is_null() {
-        false
-    } else if (value.is_number() && value.force_f64(-1.0) != 0.0) || (value.is_string() && !value.force_string("any").is_empty()) {
-        true
-    } else if value.is_boolean() {
-        value.as_bool().unwrap_or(false)
-    } else if value.is_object() {
-        value.as_object().map(|it| !it.is_empty()).unwrap_or(false)
-    } else if value.is_array() {
-        value.as_array().map(|it| !it.is_empty()).unwrap_or(false)
-    } else {
-        false
-    };
-    is_on
+    match value {
+        Value::Null => false,
+        Value::Bool(it) => *it,
+        Value::Number(it) => it.as_f64().is_some_and(|it| it != 0.0),
+        Value::String(it) => !it.is_empty(),
+        Value::Array(_) | Value::Object(_) => true,
+    }
 }

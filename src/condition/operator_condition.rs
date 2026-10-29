@@ -46,6 +46,8 @@ impl OperatorCondition {
         recursive: Recursive,
     ) -> Tri {
         match &feature_attribute.value {
+            // JS negates evalOr, which passes an empty list, so an empty $nor fails.
+            GrowthBookAttributeValue::Array(it) if it.is_empty() => Some(false),
             GrowthBookAttributeValue::Array(it) => any_of(it.iter().map(|next| each_condition(next, ctx, recursive))).map(|it| !it),
             GrowthBookAttributeValue::Empty => malformed(ctx),
             _ => Some(false),
