@@ -33,7 +33,12 @@ impl GrowthBookFeatureRuleExperiment {
         // sticky bucket service is configured and the rule doesn't disable
         // sticky bucketing; a missing hash value skips the rule.
         let fallback_allowed = sticky_bucket_service.is_some() && !self.disable_sticky_bucketing.unwrap_or(false);
-        let (feature_attribute, user_value) = resolve_hash_attribute(&self.hash_attribute, &self.fallback_attribute, fallback_allowed, user_attributes)?;
+        let Some((feature_attribute, user_value)) = resolve_hash_attribute(&self.hash_attribute, &self.fallback_attribute, fallback_allowed, user_attributes) else {
+            // JS applies a forced variation (runExperiment step 4) before it
+            // needs a hash value (step 6), with an empty hash value.
+            let attribute = non_empty(&self.hash_attribute).cloned().unwrap_or(String::from("id"));
+            return self.forced_variation(feature_name, &attribute, &GrowthBookAttributeValue::String(String::new()), forced_variations);
+        };
 
         self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, user_value, sticky_bucket_service, saved_groups)
     }

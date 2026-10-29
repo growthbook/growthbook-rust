@@ -87,6 +87,26 @@ mod test {
         evaluate_feature_cases(cases);
     }
 
+    #[test]
+    fn forced_variation_applies_without_a_hashable_attribute() {
+        // JS checks forcedVariations before it needs a hash value
+        let features: HashMap<String, GrowthBookFeature> = serde_json::from_value(serde_json::json!({
+            "f": {"defaultValue": 0, "rules": [{"key": "f", "variations": [0, 1]}]}
+        }))
+        .expect("valid features");
+        let gb = GrowthBook {
+            forced_variations: Some(HashMap::from([(String::from("f"), 1)])),
+            features,
+            attributes: None,
+            sticky_bucket_service: None,
+            saved_groups: HashMap::new(),
+        };
+        let attributes = Some(GrowthBookAttribute::from(serde_json::json!({"id": true})).expect("valid attributes"));
+        let result = gb.check("f", &attributes);
+        assert_eq!(result.value, serde_json::json!(1));
+        assert_eq!(result.source, "experiment");
+    }
+
     fn evaluate_feature_cases(cases: Vec<Value>) {
         for value in cases {
             let feature = EvalFeature::new(value);
