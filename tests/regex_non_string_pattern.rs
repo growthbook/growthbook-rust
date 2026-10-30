@@ -31,7 +31,7 @@ async fn non_string_regex_pattern_matches_nothing() {
             "defaultValue": false,
             "rules": [{ "condition": { "x": { "$notRegex": 5 } }, "force": true }]
         },
-        // Sanity: a real string pattern still matches via coercion of the user value.
+        // Sanity: a real string pattern matches string values only.
         "regex-str": {
             "defaultValue": false,
             "rules": [{ "condition": { "x": { "$regex": "^5$" } }, "force": true }]
@@ -50,6 +50,8 @@ async fn non_string_regex_pattern_matches_nothing() {
     assert!(!client.is_on("regexi-num", Some(attrs(json!(5)))), "$regexi with a numeric pattern must not match");
     // $notRegex 5 → true (inverse of a never-matching pattern).
     assert!(client.is_on("not-regex-num", Some(attrs(json!(5)))), "$notRegex with a numeric pattern must be the inverse (true)");
-    // Sanity: a valid string pattern still matches (coerces the user value to a string).
-    assert!(client.is_on("regex-str", Some(attrs(json!(5)))), "$regex \"^5$\" must still match integer 5 via coercion");
+    // Sanity: a valid string pattern still matches a string value...
+    assert!(client.is_on("regex-str", Some(attrs(json!("5")))), "$regex \"^5$\" must match string \"5\"");
+    // ...but does not coerce other types.
+    assert!(!client.is_on("regex-str", Some(attrs(json!(5)))), "$regex \"^5$\" must not match integer 5");
 }

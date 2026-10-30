@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::condition::eval_context::{ConditionEvalContext, SavedGroups};
 use crate::condition::use_case::ConditionsMatchesAttributes;
 use crate::dto::GrowthBookFeatureRuleExperiment;
-use crate::extensions::{non_empty, truthy, FindGrowthBookAttribute, JsonHelper};
+use crate::extensions::{hashable, non_empty, FindGrowthBookAttribute, JsonHelper};
 use crate::feature::resolve_hash_attribute;
 use crate::hash::{HashCode, HashCodeVersion};
 use crate::model_public::{ExperimentResult, FeatureResult, GrowthBookAttribute, GrowthBookAttributeValue};
@@ -23,11 +23,22 @@ impl GrowthBookFeatureRuleExperiment {
         sticky_bucket_service: &Option<Arc<dyn StickyBucketService>>,
         saved_groups: &SavedGroups,
     ) -> Option<FeatureResult> {
+        // JS runExperiment step 1: an experiment with fewer than two
+        // variations isn't run, so the rule is skipped.
+        if self.variations.len() < 2 {
+            return None;
+        }
+
         // JS `getHashAttribute`: the fallback attribute only applies when a
         // sticky bucket service is configured and the rule doesn't disable
         // sticky bucketing; a missing hash value skips the rule.
         let fallback_allowed = sticky_bucket_service.is_some() && !self.disable_sticky_bucketing.unwrap_or(false);
-        let (feature_attribute, user_value) = resolve_hash_attribute(&self.hash_attribute, &self.fallback_attribute, fallback_allowed, user_attributes)?;
+        let Some((feature_attribute, user_value)) = resolve_hash_attribute(&self.hash_attribute, &self.fallback_attribute, fallback_allowed, user_attributes) else {
+            // JS applies a forced variation (runExperiment step 4) before it
+            // needs a hash value (step 6), with an empty hash value.
+            let attribute = non_empty(&self.hash_attribute).cloned().unwrap_or(String::from("id"));
+            return self.forced_variation(feature_name, &attribute, &GrowthBookAttributeValue::String(String::new()), forced_variations);
+        };
 
         self.check_experiment(&feature_name, user_attributes, forced_variations, &feature_attribute, user_value, sticky_bucket_service, saved_groups)
     }
@@ -59,13 +70,13 @@ impl GrowthBookFeatureRuleExperiment {
 
                 // JS getStickyBucketAssignments resolves the fallback doc key
                 // via getHashAttribute(ctx, expFallbackAttribute), so an
-                // omitted fallbackAttribute still reads the "id" doc, and a
-                // falsy value (`fallbackValue ? ... : null`) reads no doc at
+                // omitted fallbackAttribute still reads the "id" doc, and an
+                // unhashable value (`fallbackValue ? ... : null`) reads no doc at
                 // all. Lookup only — hashing never falls back to "id" (see
                 // resolve_hash_attribute).
                 let fallback_attribute = non_empty(&self.fallback_attribute).cloned().unwrap_or(String::from("id"));
                 let fallback_value = if fallback_attribute != feature_attribute {
-                    user_attributes.find_value(&fallback_attribute).filter(truthy)
+                    user_attributes.find_value(&fallback_attribute).filter(hashable)
                 } else {
                     None
                 };
@@ -282,7 +293,7 @@ fn create_experiment_result(
     hash_used: bool,
     hash_attribute: Option<String>,
     hash_value: Option<Value>,
-    bucket: Option<f32>,
+    bucket: Option<f64>,
     key: String,
     sticky_bucket_used: bool,
 ) -> ExperimentResult {
@@ -301,7 +312,7 @@ fn create_experiment_result(
 }
 
 fn choose_variation(
-    user_weight: f32,
+    user_weight: f64,
     ranges: Vec<Range>,
 ) -> i64 {
     for (index, range) in ranges.iter().enumerate() {
@@ -346,7 +357,7 @@ mod test {
 
     pub struct EvalChooseVariation {
         name: String,
-        weight: f32,
+        weight: f64,
         ranges: Vec<Range>,
         index: i64,
     }
@@ -356,7 +367,7 @@ mod test {
             let array = value.as_array().expect("Failed to convert to array");
             Self {
                 name: array[0].as_str().expect("Failed to convert to str").to_string(),
-                weight: array[1].as_f64().expect("Failed to convert to f64") as f32,
+                weight: array[1].as_f64().expect("Failed to convert to f64"),
                 ranges: array[2]
                     .as_array()
                     .expect("Failed to convert to array")
@@ -364,8 +375,8 @@ mod test {
                     .map(|it| {
                         let array = it.as_array().expect("Failed to convert to array [2]");
                         Range {
-                            start: array[0].as_f64().expect("Failed to convert to f64") as f32,
-                            end: array[1].as_f64().expect("Failed to convert to f64") as f32,
+                            start: array[0].as_f64().expect("Failed to convert to f64"),
+                            end: array[1].as_f64().expect("Failed to convert to f64"),
                         }
                     })
                     .collect(),

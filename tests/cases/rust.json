@@ -298,33 +298,6 @@
       }
     ],
     [
-      "force rules - coverage boundary is inclusive (n == coverage)",
-      {
-        "attributes": {
-          "id": "3152"
-        },
-        "features": {
-          "feature": {
-            "defaultValue": 0,
-            "rules": [
-              {
-                "force": 1,
-                "coverage": 0.5
-              }
-            ]
-          }
-        }
-      },
-      "feature",
-      {
-        "value": 1,
-        "on": true,
-        "off": false,
-        "source": "force",
-        "ruleId": ""
-      }
-    ],
-    [
       "force rules - skip if hashAttribute missing and no sticky bucketing (fallbackAttribute set)",
       {
         "attributes": {

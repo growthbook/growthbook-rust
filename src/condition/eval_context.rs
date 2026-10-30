@@ -11,10 +11,10 @@ use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGr
 pub type SavedGroups = HashMap<String, SavedGroup>;
 
 /// Bound recursive group resolution, including long chains without cycles.
-const MAX_SAVED_GROUP_DEPTH: usize = 128;
+pub(crate) const MAX_SAVED_GROUP_DEPTH: usize = 128;
 
 /// Bound repeated references across sibling branches within one condition evaluation.
-const MAX_SAVED_GROUP_EVALUATIONS: usize = 4096;
+pub(crate) const MAX_SAVED_GROUP_EVALUATIONS: usize = 4096;
 
 /// Everything condition evaluation needs beyond the condition itself: the
 /// attributes being evaluated plus the saved groups. Bundled into one context
@@ -26,6 +26,8 @@ pub struct ConditionEvalContext<'a> {
     visited: HashSet<String>,
     /// Owned at the root and borrowed by nested contexts without allocating.
     group_evaluations: Cow<'a, Cell<usize>>,
+    /// Set where JS would throw, which fails the whole condition.
+    malformed: Cow<'a, Cell<bool>>,
 }
 
 impl<'a> ConditionEvalContext<'a> {
@@ -38,7 +40,35 @@ impl<'a> ConditionEvalContext<'a> {
             saved_groups,
             visited: HashSet::new(),
             group_evaluations: Cow::Owned(Cell::new(0)),
+            malformed: Cow::Owned(Cell::new(false)),
         }
+    }
+
+    /// A context for pruning, which continues the pruner's group path and
+    /// shares its work counter, so evaluation and pruning agree on cycles and limits.
+    pub(crate) fn within(
+        attributes: &'a [GrowthBookAttribute],
+        saved_groups: &'a SavedGroups,
+        visited: HashSet<String>,
+        group_evaluations: &'a Cell<usize>,
+    ) -> Self {
+        Self {
+            attributes,
+            saved_groups,
+            visited,
+            group_evaluations: Cow::Borrowed(group_evaluations),
+            malformed: Cow::Owned(Cell::new(false)),
+        }
+    }
+
+    /// Mark the condition as malformed, where JS would throw.
+    pub(crate) fn set_malformed(&self) {
+        self.malformed.set(true);
+    }
+
+    /// A malformed condition fails as a whole, including under `$not` and `$nor`.
+    pub fn is_malformed(&self) -> bool {
+        self.malformed.get()
     }
 
     /// The complete entry, preserving malformed entries separately from absent ids.
@@ -85,6 +115,7 @@ impl<'a> ConditionEvalContext<'a> {
             saved_groups: self.saved_groups,
             visited,
             group_evaluations: Cow::Borrowed(self.group_evaluations.as_ref()),
+            malformed: Cow::Borrowed(self.malformed.as_ref()),
         })
     }
 
@@ -103,6 +134,7 @@ impl<'a> ConditionEvalContext<'a> {
             saved_groups: self.saved_groups,
             visited: self.visited.clone(),
             group_evaluations: Cow::Borrowed(self.group_evaluations.as_ref()),
+            malformed: Cow::Borrowed(self.malformed.as_ref()),
         }
     }
 }

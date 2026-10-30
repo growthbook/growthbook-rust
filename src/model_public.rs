@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::error::{GrowthbookError, GrowthbookErrorCode};
-use crate::extensions::JsonHelper;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct GrowthBookAttribute {
@@ -38,7 +37,10 @@ pub enum SavedGroup {
     },
     /// A v2 condition evaluated against the current attributes.
     Condition(Vec<GrowthBookAttribute>),
-    /// A malformed entry or a group type this SDK does not recognize.
+    /// A group type added after this SDK was built. Conditions that depend on
+    /// it fail, even under `$not` and `$nor`, since the result is unknown.
+    Unknown,
+    /// A malformed entry.
     Invalid,
 }
 
@@ -58,6 +60,7 @@ impl From<&Value> for SavedGroup {
                 .and_then(|condition| GrowthBookAttribute::from(condition.clone()).ok())
                 .map(Self::Condition)
                 .unwrap_or(Self::Invalid),
+            _ if entry.is_object() => Self::Unknown,
             _ => Self::Invalid,
         }
     }
@@ -82,12 +85,12 @@ pub struct Experiment {
     pub hash_version: Option<i64>,
     pub hash_attribute: Option<String>,
     pub namespace: Option<Vec<Value>>,
-    pub coverage: Option<f32>,
-    pub ranges: Option<Vec<Vec<f32>>>,
+    pub coverage: Option<f64>,
+    pub ranges: Option<Vec<Vec<f64>>>,
     pub meta: Option<Value>,
     pub filters: Option<Value>,
     pub variations: Vec<Value>,
-    pub weights: Option<Vec<f32>>,
+    pub weights: Option<Vec<f64>>,
     pub condition: Option<Value>,
 }
 
@@ -101,7 +104,7 @@ pub struct ExperimentResult {
     pub hash_used: bool,
     pub hash_attribute: Option<String>,
     pub hash_value: Option<Value>,
-    pub bucket: Option<f32>,
+    pub bucket: Option<f64>,
     pub key: String,
     pub sticky_bucket_used: bool,
 }
@@ -147,6 +150,15 @@ impl GrowthBookAttributeValue {
         self.to_string().replace('.', "").parse::<f64>().ok()
     }
 
+    /// The value as a JS `number`, or `None` for any other type.
+    pub(crate) fn as_number(&self) -> Option<f64> {
+        match self {
+            GrowthBookAttributeValue::Int(it) => Some(*it as f64),
+            GrowthBookAttributeValue::Float(it) => Some(*it),
+            _ => None,
+        }
+    }
+
     /// Equality with JS `===` semantics. JSON has a single `number` type, so
     /// `Int` and `Float` are the same type and compare by numeric value
     /// (`5 === 5.0`). Every other pairing — including string-vs-number — falls
@@ -159,6 +171,23 @@ impl GrowthBookAttributeValue {
             (GrowthBookAttributeValue::Int(a), GrowthBookAttributeValue::Float(b)) => (*a as f64) == *b,
             (GrowthBookAttributeValue::Float(a), GrowthBookAttributeValue::Int(b)) => *a == (*b as f64),
             _ => self == other,
+        }
+    }
+
+    /// Deep equality like JS `JSON.stringify(a) === JSON.stringify(b)`, used for
+    /// plain array and object conditions. Numbers compare by value at any depth
+    /// (`1` equals `1.0`) and never equal booleans or strings. Object keys are
+    /// compared as a set, because payloads are parsed without key order.
+    pub(crate) fn json_eq(
+        &self,
+        other: &GrowthBookAttributeValue,
+    ) -> bool {
+        match (self, other) {
+            (GrowthBookAttributeValue::Array(a), GrowthBookAttributeValue::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.json_eq(b)),
+            (GrowthBookAttributeValue::Object(a), GrowthBookAttributeValue::Object(b)) => {
+                a.len() == b.len() && a.iter().all(|field| b.iter().any(|other| other.key == field.key && field.value.json_eq(&other.value)))
+            },
+            _ => self.strict_eq(other),
         }
     }
 
@@ -189,7 +218,8 @@ impl From<Value> for GrowthBookAttributeValue {
             GrowthBookAttributeValue::Bool(value.as_bool().unwrap_or_default())
         } else if value.is_i64() {
             GrowthBookAttributeValue::Int(value.as_i64().unwrap_or_default())
-        } else if value.is_f64() {
+        } else if value.is_number() {
+            // Floats, and unsigned integers beyond i64, which JS reads as the nearest double.
             GrowthBookAttributeValue::Float(value.as_f64().unwrap_or_default())
         } else if value.is_array() {
             let vec: Vec<GrowthBookAttributeValue> = value.as_array().unwrap_or(&vec![]).iter().map(|item| GrowthBookAttributeValue::from(item.clone())).collect();
@@ -330,19 +360,14 @@ impl FeatureResult {
     }
 }
 
+/// JS truthiness: off only for `null`, `false`, `0` and `""`. Arrays and
+/// objects are on, even when empty.
 fn is_on(value: &Value) -> bool {
-    let is_on = if value.is_null() {
-        false
-    } else if (value.is_number() && value.force_f64(-1.0) != 0.0) || (value.is_string() && !value.force_string("any").is_empty()) {
-        true
-    } else if value.is_boolean() {
-        value.as_bool().unwrap_or(false)
-    } else if value.is_object() {
-        value.as_object().map(|it| !it.is_empty()).unwrap_or(false)
-    } else if value.is_array() {
-        value.as_array().map(|it| !it.is_empty()).unwrap_or(false)
-    } else {
-        false
-    };
-    is_on
+    match value {
+        Value::Null => false,
+        Value::Bool(it) => *it,
+        Value::Number(it) => it.as_f64().is_some_and(|it| it != 0.0),
+        Value::String(it) => !it.is_empty(),
+        Value::Array(_) | Value::Object(_) => true,
+    }
 }

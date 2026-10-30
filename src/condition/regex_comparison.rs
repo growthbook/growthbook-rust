@@ -14,11 +14,9 @@ impl RegexComparison {
     ) -> bool {
         if let GrowthBookAttributeValue::String(feature_value) = &feature_attribute.value {
             if let Ok(regex) = Regex::new(feature_value) {
-                if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    match &user_value {
-                        GrowthBookAttributeValue::Array(it) => it.iter().any(|item| regex.is_match(&item.to_string())),
-                        it => regex.is_match(&it.to_string()),
-                    }
+                // Only strings are tested; other types fail without coercion.
+                if let Some(GrowthBookAttributeValue::String(user_value)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+                    regex.is_match(&user_value)
                 } else {
                     false
                 }
@@ -41,11 +39,9 @@ impl RegexComparison {
     ) -> bool {
         if let GrowthBookAttributeValue::String(feature_value) = &feature_attribute.value {
             if let Ok(regex) = regex::RegexBuilder::new(feature_value).case_insensitive(true).build() {
-                if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-                    match &user_value {
-                        GrowthBookAttributeValue::Array(it) => it.iter().any(|item| regex.is_match(&item.to_string())),
-                        it => regex.is_match(&it.to_string()),
-                    }
+                // Only strings are tested; other types fail without coercion.
+                if let Some(GrowthBookAttributeValue::String(user_value)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+                    regex.is_match(&user_value)
                 } else {
                     false
                 }

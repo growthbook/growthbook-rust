@@ -34,10 +34,10 @@ async fn dollar_prefixed_attributes_support_missing_values_and_exclusions() {
 }
 
 #[tokio::test]
-async fn missing_paths_follow_javascript_order_comparisons() {
+async fn missing_paths_fail_order_comparisons() {
     for operator in ["$gt", "$gte", "$lt", "$lte"] {
         for threshold in [json!(100), json!("zzz")] {
-            let expected = threshold.is_number() && matches!(operator, "$lt" | "$lte");
+            let expected = false;
             let comparison = json!({operator: threshold});
             assert_eq!(
                 evaluate(json!({"items.price": comparison.clone()}), json!({"items": [{"price": 50}]})).await,
@@ -61,5 +61,106 @@ async fn all_with_nonnumeric_members_does_not_panic() {
     for operator in ["$gt", "$gte", "$lt", "$lte"] {
         assert!(!evaluate(json!({"arr": {"$all": [{operator: 5}]}}), json!({"arr": [["a1"]]})).await, "{operator}");
     }
-    assert!(evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], [10]]})).await);
+    assert!(evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], 10]})).await);
+    // Arrays are not ordered, so a nested `[10]` does not satisfy `$gt: 5`.
+    assert!(!evaluate(json!({"arr": {"$all": [{"$gt": 5}]}}), json!({"arr": [["a1"], [10]]})).await);
+}
+
+// A plain object or array condition is deep equality, like JS comparing
+// `JSON.stringify` output: `1` and `1.0` are the same number at any depth,
+// while booleans, strings and numbers stay distinct.
+#[tokio::test]
+async fn plain_object_and_array_equality_compares_numbers_by_value() {
+    for (condition, attribute, expected) in [
+        (json!({"a": 1}), json!({"a": 1.0}), true),
+        (json!({"a": 1.5}), json!({"a": 1.5}), true),
+        (json!({"a": {"b": [1, 2]}}), json!({"a": {"b": [1.0, 2.0]}}), true),
+        (json!({"a": 1, "b": 2}), json!({"b": 2, "a": 1}), true),
+        (json!({"a": 1}), json!({"a": true}), false),
+        (json!({"a": 1}), json!({"a": "1"}), false),
+        (json!({"a": 1}), json!({"a": 1, "b": 2}), false),
+        (json!([1, 2]), json!([1.0, 2.0]), true),
+        (json!([[1], {"a": 2}]), json!([[1.0], {"a": 2.0}]), true),
+        (json!([1]), json!([true]), false),
+        (json!([1, 2]), json!([2, 1]), false),
+    ] {
+        assert_eq!(evaluate(json!({"x": condition}), json!({"x": attribute})).await, expected, "{condition} vs {attribute}");
+    }
+}
+
+// Strings order by UTF-16 code units, as in JS. U+10000 is a surrogate pair
+// (0xD800 0xDC00), so it sorts before U+E000 even though its code point is higher.
+#[tokio::test]
+async fn string_order_uses_utf16_code_units() {
+    let attributes = json!({"x": "\u{10000}"});
+    assert!(evaluate(json!({"x": {"$lt": "\u{E000}"}}), attributes.clone()).await);
+    assert!(evaluate(json!({"x": {"$lte": "\u{E000}"}}), attributes.clone()).await);
+    assert!(!evaluate(json!({"x": {"$gt": "\u{E000}"}}), attributes.clone()).await);
+    assert!(!evaluate(json!({"x": {"$gte": "\u{E000}"}}), attributes).await);
+}
+
+#[tokio::test]
+async fn elem_match_conditions_treat_primitive_elements_as_objects_without_fields() {
+    // Like JS getPath on a primitive, every field of a non-object element is missing.
+    assert!(evaluate(json!({"tags": {"$elemMatch": {"$nor": [{"name": "x"}]}}}), json!({"tags": [5]})).await);
+    assert!(!evaluate(json!({"tags": {"$elemMatch": {"$or": [{"name": "x"}]}}}), json!({"tags": ["x"]})).await);
+    assert!(evaluate(json!({"tags": {"$elemMatch": {"$or": [{"name": "x"}]}}}), json!({"tags": [5, {"name": "x"}]})).await);
+}
+
+#[tokio::test]
+async fn unknown_operators_fail_under_negation() {
+    for condition in [
+        json!({"$not": {"x": {"$future": 1}}}),
+        json!({"$nor": [{"x": {"$future": 1}}]}),
+        json!({"x": {"$not": {"$future": 1}}}),
+        json!({"x": {"$elemMatch": {"$future": 1}}}),
+    ] {
+        assert!(!evaluate(condition.clone(), json!({"x": [1]})).await, "{condition}");
+    }
+    // A known operator that fails still decides the condition, and an $or another condition passes.
+    assert!(evaluate(json!({"$or": [{"x": {"$future": 1}}, {"y": 1}]}), json!({"y": 1})).await);
+}
+
+#[tokio::test]
+async fn malformed_logical_operators_fail() {
+    for condition in [json!({"$or": null, "id": "123"}), json!({"$and": null}), json!({"$nor": "x"}), json!({"$or": [null]})] {
+        assert!(!evaluate(condition.clone(), json!({"id": "123"})).await, "{condition}");
+    }
+}
+
+#[tokio::test]
+async fn malformed_conditions_fail_under_negation() {
+    // JS throws on each of these, which fails the whole condition, so $not and $nor can't pass them
+    for condition in [
+        json!({"$not": {"$or": null}}),
+        json!({"$nor": [{"$or": null}]}),
+        json!({"$not": {"$and": null}}),
+        json!({"$nor": [null]}),
+        json!({"$nor": [{"$not": null}]}),
+        json!({"$not": {"$nor": [{"$or": [null]}]}}),
+    ] {
+        assert!(!evaluate(condition.clone(), json!({"id": "123"})).await, "{condition}");
+    }
+    // An $or that passes before reaching a malformed branch still passes, as in JS
+    assert!(evaluate(json!({"$or": [{"id": "123"}, {"$or": null}]}), json!({"id": "123"})).await);
+}
+
+#[tokio::test]
+async fn elem_match_conditions_see_array_element_indices_and_length() {
+    assert!(evaluate(json!({"x": {"$elemMatch": {"$or": [{"0": 1}]}}}), json!({"x": [[1]]})).await);
+    assert!(evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 1}]}}}), json!({"x": [[1]]})).await);
+    assert!(!evaluate(json!({"x": {"$elemMatch": {"$or": [{"length": 2}]}}}), json!({"x": [[1]]})).await);
+}
+
+#[tokio::test]
+async fn unsigned_attributes_beyond_i64_are_numbers() {
+    let big = json!(9_223_372_036_854_775_808_u64);
+    assert!(!evaluate(json!({"x": {"$eq": null}}), json!({"x": big})).await);
+    assert!(evaluate(json!({"x": {"$gt": 1}}), json!({"x": big})).await);
+}
+
+#[tokio::test]
+async fn numeric_versions_use_js_number_strings() {
+    assert!(evaluate(json!({"x": {"$vgt": 1.5}}), json!({"x": 1e-7})).await);
+    assert!(evaluate(json!({"x": {"$veq": 1e22}}), json!({"x": 1e21})).await);
 }

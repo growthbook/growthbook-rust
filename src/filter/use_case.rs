@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::extensions::{truthy, FindGrowthBookAttribute, JsonHelper};
+use crate::extensions::{hashable, FindGrowthBookAttribute, JsonHelper};
 use crate::hash::{HashCode, HashCodeVersion};
 use crate::model_public::GrowthBookAttribute;
 use crate::range::model::Range;
@@ -26,9 +26,9 @@ impl Filter {
                 attribute if attribute.is_empty() => default_attribute.to_string(),
                 attribute => attribute,
             };
-            // A falsy value counts as missing (JS getHashAttribute), so the
-            // user is excluded by this filter.
-            let Some(user_value) = user_attributes.find_value(&attribute).filter(truthy) else {
+            // An unhashable value counts as missing (JS getHashAttribute), so
+            // the user is excluded by this filter.
+            let Some(user_value) = user_attributes.find_value(&attribute).filter(hashable) else {
                 return true;
             };
 
@@ -40,8 +40,8 @@ impl Filter {
             // Excluded by this filter unless the weight is in one of its ranges.
             !filter.get_array("ranges", vec![]).iter().any(|array| {
                 Range {
-                    start: array[0].force_f32(0.0),
-                    end: array[1].force_f32(1.0),
+                    start: array[0].force_f64(0.0),
+                    end: array[1].force_f64(1.0),
                 }
                 .in_range(&user_weight)
             })

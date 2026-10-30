@@ -9,6 +9,41 @@ use crate::condition::version_comparison::VersionComparison;
 use crate::extensions::FindGrowthBookAttribute;
 use crate::model_public::{GrowthBookAttribute, GrowthBookAttributeValue, SavedGroup};
 
+/// A condition result: `Some` once decided, or `None` when it depends on an
+/// operator or saved group type this SDK doesn't support. Only `Some(true)`
+/// passes, so an unsupported part also fails under `$not` and `$nor`.
+pub(crate) type Tri = Option<bool>;
+
+/// Every result must pass: one failure decides it, wherever an unknown one is.
+pub(super) fn all_of(results: impl IntoIterator<Item = Tri>) -> Tri {
+    let mut result = Some(true);
+    for next in results {
+        match next {
+            Some(false) => return Some(false),
+            None => result = None,
+            Some(true) => {},
+        }
+    }
+    result
+}
+
+/// One result must pass: one pass decides it, wherever an unknown one is.
+pub(super) fn any_of(results: impl IntoIterator<Item = Tri>) -> Tri {
+    let mut result = Some(false);
+    for next in results {
+        match next {
+            Some(true) => return Some(true),
+            None => result = None,
+            Some(false) => {},
+        }
+    }
+    result
+}
+
+/// Condition keys that aren't attributes, besides `$not`, which is also an
+/// operator on a value.
+pub(super) const CONDITION_OPERATORS: [&str; 4] = ["$or", "$nor", "$and", "$savedGroup"];
+
 pub trait ConditionsMatchesAttributes {
     fn matches(
         &self,
@@ -21,64 +56,73 @@ impl ConditionsMatchesAttributes for Vec<GrowthBookAttribute> {
         &self,
         ctx: &ConditionEvalContext,
     ) -> bool {
-        !ctx.work_limit_exceeded() && self.iter().all(|it| verify(None, it, ctx, false)) && !ctx.work_limit_exceeded()
+        !ctx.work_limit_exceeded() && evaluate(self, ctx) == Some(true) && !ctx.work_limit_exceeded() && !ctx.is_malformed()
     }
+}
+
+/// Evaluate a condition's entries without collapsing an unknown result.
+pub(crate) fn evaluate(
+    condition: &[GrowthBookAttribute],
+    ctx: &ConditionEvalContext,
+) -> Tri {
+    all_of(condition.iter().map(|it| verify(None, it, ctx)))
 }
 
 fn verify(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
-    array_size: bool,
-) -> bool {
-    if ctx.work_limit_exceeded() {
-        return false;
+) -> Tri {
+    if ctx.work_limit_exceeded() || ctx.is_malformed() {
+        return Some(false);
     }
+    let decided = |result: bool| Some(result);
     match feature_attribute.key.as_str() {
         "$savedGroup" if parent_attribute.is_none() => saved_group(&feature_attribute.value, ctx),
-        "$savedGroup" | "$savedGroups" => false,
-        "$and" | "$or" | "$nor" if parent_attribute.is_some() => false,
+        "$savedGroup" | "$savedGroups" => Some(false),
+        "$and" | "$or" | "$nor" if parent_attribute.is_some() => Some(false),
         "$not" => OperatorCondition::not(parent_attribute, feature_attribute, ctx, verify),
-        "$ne" => OperatorCondition::ne(parent_attribute, feature_attribute, ctx, verify),
+        "$ne" => decided(OperatorCondition::ne(parent_attribute, feature_attribute, ctx)),
         "$and" => OperatorCondition::and(parent_attribute, feature_attribute, ctx, verify),
         "$nor" => OperatorCondition::nor(parent_attribute, feature_attribute, ctx, verify),
         "$or" => OperatorCondition::or(parent_attribute, feature_attribute, ctx, verify),
-        "$in" => OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, false, verify),
-        "$nin" => OperatorCondition::nin(parent_attribute, feature_attribute, ctx, false, verify),
-        "$gt" => OrderComparison::gt(parent_attribute, feature_attribute, ctx, array_size),
-        "$gte" => OrderComparison::gte(parent_attribute, feature_attribute, ctx, array_size),
-        "$lt" => OrderComparison::lt(parent_attribute, feature_attribute, ctx, array_size),
-        "$lte" => OrderComparison::lte(parent_attribute, feature_attribute, ctx, array_size),
-        "$eq" => OperatorCondition::eq(parent_attribute, feature_attribute, ctx, verify),
-        "$exists" => OperatorCondition::exists(parent_attribute, feature_attribute, ctx, verify),
-        "$regex" => RegexComparison::matches(parent_attribute, feature_attribute, ctx),
-        "$type" => TypeComparison::matches(parent_attribute, feature_attribute, ctx),
+        "$in" => decided(OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, false)),
+        "$nin" => decided(OperatorCondition::nin(parent_attribute, feature_attribute, ctx, false)),
+        "$gt" => decided(OrderComparison::gt(parent_attribute, feature_attribute, ctx)),
+        "$gte" => decided(OrderComparison::gte(parent_attribute, feature_attribute, ctx)),
+        "$lt" => decided(OrderComparison::lt(parent_attribute, feature_attribute, ctx)),
+        "$lte" => decided(OrderComparison::lte(parent_attribute, feature_attribute, ctx)),
+        "$eq" => decided(OperatorCondition::eq(parent_attribute, feature_attribute, ctx)),
+        "$exists" => decided(OperatorCondition::exists(parent_attribute, feature_attribute, ctx)),
+        "$regex" => decided(RegexComparison::matches(parent_attribute, feature_attribute, ctx)),
+        "$type" => decided(TypeComparison::matches(parent_attribute, feature_attribute, ctx)),
         "$size" => SizeComparison::matches(parent_attribute, feature_attribute, ctx),
         "$all" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, false),
-        "$vgt" => VersionComparison::vgt(parent_attribute, feature_attribute, ctx),
-        "$vgte" => VersionComparison::vgte(parent_attribute, feature_attribute, ctx),
-        "$vlt" => VersionComparison::vlt(parent_attribute, feature_attribute, ctx),
-        "$vlte" => VersionComparison::vlte(parent_attribute, feature_attribute, ctx),
-        "$veq" => VersionComparison::veq(parent_attribute, feature_attribute, ctx),
-        "$vne" => VersionComparison::vne(parent_attribute, feature_attribute, ctx),
+        "$vgt" => decided(VersionComparison::vgt(parent_attribute, feature_attribute, ctx)),
+        "$vgte" => decided(VersionComparison::vgte(parent_attribute, feature_attribute, ctx)),
+        "$vlt" => decided(VersionComparison::vlt(parent_attribute, feature_attribute, ctx)),
+        "$vlte" => decided(VersionComparison::vlte(parent_attribute, feature_attribute, ctx)),
+        "$veq" => decided(VersionComparison::veq(parent_attribute, feature_attribute, ctx)),
+        "$vne" => decided(VersionComparison::vne(parent_attribute, feature_attribute, ctx)),
         "$elemMatch" => ElemMatchComparison::matches(parent_attribute, feature_attribute, ctx),
-        "$ini" => OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, true, verify),
-        "$nini" => OperatorCondition::nin(parent_attribute, feature_attribute, ctx, true, verify),
+        "$ini" => decided(OperatorCondition::is_in(parent_attribute, feature_attribute, ctx, true)),
+        "$nini" => decided(OperatorCondition::nin(parent_attribute, feature_attribute, ctx, true)),
         "$alli" => OperatorCondition::all(parent_attribute, feature_attribute, ctx, true),
-        "$regexi" => RegexComparison::matches_ignore_case(parent_attribute, feature_attribute, ctx),
-        "$notRegex" => RegexComparison::not_matches(parent_attribute, feature_attribute, ctx),
-        "$notRegexi" => RegexComparison::not_matches_ignore_case(parent_attribute, feature_attribute, ctx),
+        "$regexi" => decided(RegexComparison::matches_ignore_case(parent_attribute, feature_attribute, ctx)),
+        "$notRegex" => decided(RegexComparison::not_matches(parent_attribute, feature_attribute, ctx)),
+        "$notRegexi" => decided(RegexComparison::not_matches_ignore_case(parent_attribute, feature_attribute, ctx)),
         "$inGroup" => OperatorCondition::in_group(parent_attribute, feature_attribute, ctx),
         "$notInGroup" => OperatorCondition::not_in_group(parent_attribute, feature_attribute, ctx),
-        key if key.starts_with('$') && parent_attribute.is_some() => false,
+        // An operator this SDK doesn't know. The client's SDK may.
+        key if key.starts_with('$') && parent_attribute.is_some() => None,
         _ => non_operator_or_condition(parent_attribute, feature_attribute, ctx),
     }
 }
 
 /// Whether an object represents attribute operators rather than a condition
-/// evaluated against the fields of an object.
+/// evaluated against the fields of an object. `{}` has no operators, so it passes.
 pub(super) fn is_operator_object(fields: &[GrowthBookAttribute]) -> bool {
-    !fields.is_empty() && fields.iter().all(|field| field.key.starts_with('$'))
+    fields.iter().all(|field| field.key.starts_with('$'))
 }
 
 /// Evaluate an array element or size without resetting group cycle detection.
@@ -87,41 +131,41 @@ pub(super) fn matches_value(
     expected: &GrowthBookAttributeValue,
     ctx: &ConditionEvalContext,
     case_insensitive: bool,
-) -> bool {
+) -> Tri {
     if let GrowthBookAttributeValue::Object(fields) = expected {
         if is_operator_object(fields) {
             let attributes = [GrowthBookAttribute::new(String::from("value"), actual.clone())];
             let nested = ctx.with_attributes(&attributes);
-            return fields.iter().all(|field| verify(Some(&attributes[0]), field, &nested, false));
+            return all_of(fields.iter().map(|field| verify(Some(&attributes[0]), field, &nested)));
         }
     }
     if case_insensitive {
         if let (GrowthBookAttributeValue::String(actual), GrowthBookAttributeValue::String(expected)) = (actual, expected) {
-            return actual.to_lowercase() == expected.to_lowercase();
+            return Some(actual.to_lowercase() == expected.to_lowercase());
         }
     }
-    actual.strict_eq(expected)
+    Some(actual.json_eq(expected))
 }
 
 /// Resolve a condition-level reference. Unknown reference fields are ignored.
 fn saved_group(
     reference: &GrowthBookAttributeValue,
     ctx: &ConditionEvalContext,
-) -> bool {
+) -> Tri {
     let GrowthBookAttributeValue::Object(fields) = reference else {
-        return false;
+        return Some(false);
     };
     let field = |key: &str| fields.iter().find(|field| field.key == key).map(|field| &field.value);
     let Some(GrowthBookAttributeValue::String(id)) = field("id") else {
-        return false;
+        return Some(false);
     };
     let attribute_key = match field("attributeKey") {
         None => None,
         Some(GrowthBookAttributeValue::String(key)) => Some(key),
-        _ => return false,
+        _ => return Some(false),
     };
     let Some(next) = ctx.enter_group(id) else {
-        return false;
+        return Some(false);
     };
     match ctx.saved_group(id) {
         Some(SavedGroup::List {
@@ -129,27 +173,38 @@ fn saved_group(
             values: Some(values),
         }) => {
             let Some(key) = attribute_key.or(entry_key.as_ref()) else {
-                return false;
+                return Some(false);
             };
             let actual = ctx.find_value(key).unwrap_or(GrowthBookAttributeValue::Empty);
-            super::operator_condition::value_in_members(&actual, values, false)
+            Some(super::operator_condition::value_in_members(&actual, values, false))
         },
-        Some(SavedGroup::Condition(condition)) => condition.matches(&next),
-        _ => false,
+        Some(SavedGroup::Condition(condition)) => evaluate(condition, &next),
+        // A group type added after this SDK was built. The client's SDK may support it.
+        Some(SavedGroup::Unknown) => None,
+        _ => Some(false),
     }
+}
+
+/// Evaluate a plain (non-operator) condition value against the attribute at `key`.
+pub(super) fn implicit_equals(
+    key: &str,
+    expected: &GrowthBookAttributeValue,
+    ctx: &ConditionEvalContext,
+) -> Tri {
+    non_operator_or_condition(None, &GrowthBookAttribute::new(key.to_owned(), expected.clone()), ctx)
 }
 
 fn non_operator_or_condition(
     parent_attribute: Option<&GrowthBookAttribute>,
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
-) -> bool {
+) -> Tri {
     match &feature_attribute.value {
-        GrowthBookAttributeValue::String(_) => string_non_operator(parent_attribute, feature_attribute, ctx),
-        GrowthBookAttributeValue::Array(feature_values) => array(&parent_attribute, &feature_attribute, ctx, feature_values),
+        GrowthBookAttributeValue::String(_) => Some(string_non_operator(parent_attribute, feature_attribute, ctx)),
+        GrowthBookAttributeValue::Array(feature_values) => Some(array(&parent_attribute, &feature_attribute, ctx, feature_values)),
         GrowthBookAttributeValue::Object(it) => object(parent_attribute, feature_attribute, ctx, it),
-        GrowthBookAttributeValue::Empty => empty(&parent_attribute, &feature_attribute, ctx),
-        it => fallback(&parent_attribute, feature_attribute, ctx, it),
+        GrowthBookAttributeValue::Empty => Some(empty(&parent_attribute, &feature_attribute, ctx)),
+        it => Some(fallback(&parent_attribute, feature_attribute, ctx, it)),
     }
 }
 
@@ -161,7 +216,7 @@ fn string_non_operator(
     if feature_attribute.key.starts_with('$') && parent_attribute.is_some() {
         false
     } else {
-        OperatorCondition::eq(parent_attribute, feature_attribute, ctx, verify)
+        OperatorCondition::eq(parent_attribute, feature_attribute, ctx)
     }
 }
 
@@ -173,7 +228,7 @@ fn array(
 ) -> bool {
     if let Some(GrowthBookAttributeValue::Array(user_values)) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
         if feature_values.len() == user_values.len() {
-            feature_values.iter().enumerate().all(|(index, value)| value == &user_values[index])
+            feature_values.iter().zip(&user_values).all(|(value, user_value)| value.json_eq(user_value))
         } else {
             false
         }
@@ -187,21 +242,17 @@ fn object(
     feature_attribute: &GrowthBookAttribute,
     ctx: &ConditionEvalContext,
     it: &[GrowthBookAttribute],
-) -> bool {
-    if it.is_empty() {
-        // A non-operator condition `{key: {}}` is a deep-equality check, so it
-        // matches only when the user's value at `key` is itself an empty object
-        // `{}`. A missing attribute (or any non-object / non-empty value) does
-        // not match.
-        matches!(
-            ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key),
-            Some(GrowthBookAttributeValue::Object(user_object)) if user_object.is_empty()
-        )
+) -> Tri {
+    if is_operator_object(it) {
+        let parent = feature_attribute.aggregate_key(parent_attribute);
+        all_of(it.iter().map(|next| verify(Some(&parent), next, ctx)))
     } else {
-        it.iter().all(|next| {
-            let parent = feature_attribute.aggregate_key(parent_attribute);
-            verify(Some(&parent), next, ctx, false)
-        })
+        // A non-operator object condition is a deep-equality check, so it
+        // matches only an object attribute with the same contents.
+        match ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
+            Some(user_value @ GrowthBookAttributeValue::Object(_)) => Some(user_value.json_eq(&feature_attribute.value)),
+            _ => Some(false),
+        }
     }
 }
 
@@ -223,8 +274,9 @@ fn fallback(
     ctx: &ConditionEvalContext,
     it: &GrowthBookAttributeValue,
 ) -> bool {
+    // Numbers and booleans: JS `===`, so no coercion from other types.
     if let Some(user_value) = ctx.find_value(&parent_attribute.unwrap_or(feature_attribute).key) {
-        it == &user_value
+        it.strict_eq(&user_value)
     } else {
         false
     }

@@ -208,3 +208,25 @@ impl StickyBucketService for MyRedisStickyBucketService {
     }
 }
 ```
+## Payload Reduction
+
+For server-side rendering, `growthbook_rust::payload` can shrink a decrypted
+features payload before you bootstrap a client SDK with it. Pass only the
+attributes you know on the server: conditions on them are decided and removed,
+and anything still undecided stays for the client to evaluate.
+
+```rust
+use growthbook_rust::payload::{prune_condition, reduce_payload, PayloadFilters, ReducePayloadOptions};
+use serde_json::json;
+
+let options = ReducePayloadOptions {
+    // Keep only what matches every filter
+    include: PayloadFilters { projects: Some(vec![json!("mobileProjectId")]), ..Default::default() },
+    ..Default::default()
+};
+let bootstrap_payload = reduce_payload(&payload, &json!({ "userId": "123" }), &options);
+
+// Or reduce a single condition: `true`, `false`, or what is left undecided
+let condition = prune_condition(&json!({ "id": "123" }), &json!({ "id": "123", "country": "US" }), &json!({}));
+assert_eq!(condition, json!({ "country": "US" }));
+```

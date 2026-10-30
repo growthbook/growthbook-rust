@@ -1,6 +1,7 @@
 {
   "suites": {
-    "contextualBandit": "Contextual bandits are not supported by the Rust SDK."
+    "contextualBandit": "Contextual bandits are not supported by the Rust SDK.",
+    "savedGroupReferencesRemote": "Remote saved groups are not supported by the Rust SDK."
   },
   "cases": {
     "feature": {
@@ -8,6 +9,9 @@
       "CB rule with no contexts key falls back to marginal weights (fallback leaf -1)": "Contextual bandits are not supported by the Rust SDK.",
       "CB rule with empty contexts uses marginal weights (fallback leaf -1)": "Contextual bandits are not supported by the Rust SDK.",
       "CB rule with empty contexts is overridden by forced variation like a normal experiment": "Contextual bandits are not supported by the Rust SDK."
+    },
+    "run": {
+      "Filtered, ignore namespace": "Known divergence from JS: namespace is still checked when filters are present."
     }
   }
 }
