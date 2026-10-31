@@ -367,6 +367,8 @@ impl GrowthBookClient {
             sticky_bucket_service: writable_config.sticky_bucket_service.clone(),
             saved_groups: saved_groups_from_value(saved_groups.as_ref()),
         };
+        // Callbacks may evaluate features through this client and need its read lock.
+        drop(writable_config);
 
         for callback in &self.on_refresh {
             callback();
