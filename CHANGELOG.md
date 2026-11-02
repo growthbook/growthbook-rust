@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0](https://github.com/growthbook/growthbook-rust/compare/0.3.0...0.4.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Targeting conditions are strict about types: values are no longer converted between types, negated operators always give the opposite result of their positive form, booleans are not ordered, and version operators need two strings or two numbers. Conditions that use an operator or saved group type the SDK does not support always fail, even under $not or $nor. Only strings and numbers can be hash attributes; other values (booleans, arrays, objects, 0 and "") count as missing. Percentage rollouts no longer include one extra hash bucket. Hashing uses UTF-16 code units, like the JavaScript SDK, which changes bucketing only for ids and experiment or feature keys that contain non-ASCII characters (such as é, CJK or emoji); ASCII ids and keys are unaffected. Experiments with fewer than two variations are skipped.
+
+### Features
+
+* add reduce_payload and prune_condition to shrink a payload to what one user needs ([4e9d8b9](https://github.com/growthbook/growthbook-rust/commit/4e9d8b9c377819406984cc933cb0f2c7e0f4e1ef))
+* align with spec 0.12.0 (strict types, condition edge cases, bucketing, payload reduction) ([#38](https://github.com/growthbook/growthbook-rust/issues/38)) ([4e9d8b9](https://github.com/growthbook/growthbook-rust/commit/4e9d8b9c377819406984cc933cb0f2c7e0f4e1ef))
+
 ## [0.3.0](https://github.com/growthbook/growthbook-rust/compare/0.2.2...0.3.0) (2026-10-05)
 
 
